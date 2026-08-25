@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // PredictEats AI Security Rules
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    match /orders/{orderId} {
+      allow read, write: if true;
+    }
+
+    match /deliveryPredictions/{predictionId} {
+      allow read, write: if true;
+    }
+
+    match /deliveryTracking/{orderId} {
+      allow read, write: if true;
+    }
+
+    match /simulationEvents/{eventId} {
+      allow read, write: if true;
+    }
+
+    match /gameSessions/{sessionId} {
+      allow read, write: if true;
+    }
+
+    match /gameScores/{scoreId} {
+      allow read, write: if true;
+    }
+
+    match /rewardTransactions/{txId} {
+      allow read, write: if true;
+    }
+
+    match /achievements/{achId} {
+      allow read, write: if true;
+    }
+
+    match /leaderboard/{entry} {
+      allow read, write: if true;
+    }
+
+    match /adminSettings/{configId} {
+      allow read, write: if true;
+    }
+  }
+}
