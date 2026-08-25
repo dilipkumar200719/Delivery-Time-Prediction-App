@@ -143,15 +143,65 @@ const INITIAL_CART: CartItem[] = [
   }
 ];
 
+const DEFAULT_USER: UserProfile = {
+  uid: 'demo_user_1024',
+  email: 'dilipdhammu2@gmail.com',
+  displayName: 'Dilip (AI Pilot)',
+  deliveryPoints: 250,
+  rewardBalanceRupees: 25,
+  totalGamesPlayed: 3,
+  totalOrdersPlaced: 5,
+  createdAt: new Date().toISOString()
+};
+
+const INITIAL_PREDICTION: PredictionResult = predictDelivery(DEFAULT_CONDITIONS, 'ORD-8553');
+
+const INITIAL_ACTIVE_ORDER: OrderRecord = {
+  id: 'ORD-8553',
+  userId: DEFAULT_USER.uid,
+  customerName: DEFAULT_USER.displayName,
+  restaurantName: 'Spice Route Kitchen',
+  items: [
+    { name: 'Royal Chicken Dum Biryani', quantity: 2, price: 249 },
+    { name: 'Smoked Peri-Peri Paneer Pizza', quantity: 1, price: 299 }
+  ],
+  totalAmountRupees: 836,
+  status: 'OUT_FOR_DELIVERY',
+  conditions: DEFAULT_CONDITIONS,
+  prediction: INITIAL_PREDICTION,
+  startedAt: new Date().toISOString()
+};
+
+const INITIAL_TRACKING: LiveTrackingState = {
+  orderId: INITIAL_ACTIVE_ORDER.id,
+  driverPosition: { x: 35, y: 65, progress: 32 },
+  speedKmh: 28,
+  distanceRemainingKm: 2.8,
+  etaMinutes: INITIAL_PREDICTION.predictedEtaMinutes || 18,
+  currentRouteId: INITIAL_PREDICTION.recommendedRoute.id,
+  status: 'OUT_FOR_DELIVERY',
+  deliveryHealth: INITIAL_PREDICTION.deliveryHealthScore || 87,
+  riskScore: INITIAL_PREDICTION.riskScore,
+  vehicleHealth: DEFAULT_CONDITIONS.vehicleHealth,
+  batteryLevel: DEFAULT_CONDITIONS.batteryLevel,
+  conditions: DEFAULT_CONDITIONS,
+  activeIncidents: [
+    { id: 'inc_1', type: 'traffic', title: 'Traffic Corridor Congestion', penaltyMinutes: 3, timestamp: '2m ago' }
+  ],
+  isPaused: false,
+  simulationSpeed: 1,
+  updatedAt: new Date().toISOString()
+};
+
 const AppContext = createContext<AppContextType | null>(null);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(DEFAULT_USER);
   const [conditions, setConditions] = useState<DeliveryConditions>(DEFAULT_CONDITIONS);
-  const [activeOrder, setActiveOrder] = useState<OrderRecord | null>(null);
-  const [userOrders, setUserOrders] = useState<OrderRecord[]>([]);
-  const [prediction, setPrediction] = useState<PredictionResult | null>(null);
-  const [tracking, setTracking] = useState<LiveTrackingState | null>(null);
+  const [activeOrder, setActiveOrder] = useState<OrderRecord | null>(INITIAL_ACTIVE_ORDER);
+  const [userOrders, setUserOrders] = useState<OrderRecord[]>([INITIAL_ACTIVE_ORDER]);
+  const [prediction, setPrediction] = useState<PredictionResult | null>(INITIAL_PREDICTION);
+  const [tracking, setTracking] = useState<LiveTrackingState | null>(INITIAL_TRACKING);
   const [activeTab, setActiveTab] = useState<AppTab>('HOME');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');

@@ -77,14 +77,35 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
   const [showEvents, setShowEvents] = useState<boolean>(true);
   const [activeTabRoute, setActiveTabRoute] = useState<string>('ROUTE_C');
 
-  // Derive active route from prediction or tracking
+  // Default fallback route for absolute safety
+  const fallbackRoute: RouteOption = useMemo(() => ({
+    id: 'ROUTE_C',
+    name: 'Route C — Knowledge City Green Corridor',
+    distanceKm: 4.2,
+    estimatedMinutes: 18,
+    trafficSummary: 'Optimal AI Transit Path',
+    isRecommended: true,
+    riskLevel: 'LOW',
+    score: 94,
+    geoCoordinates: [
+      RESTAURANT_COORD,
+      [17.4504, 78.3808],
+      [17.4390, 78.3850],
+      [17.4350, 78.3690],
+      [17.4360, 78.3540],
+      CUSTOMER_COORD
+    ]
+  }), []);
+
+  // Derive active route from prediction or tracking with guaranteed fallback
   const activeRoute = useMemo(() => {
     return (
-      prediction?.availableRoutes.find(r => r.id === (tracking?.currentRouteId || activeTabRoute)) ||
+      prediction?.availableRoutes?.find(r => r.id === (tracking?.currentRouteId || activeTabRoute)) ||
       prediction?.recommendedRoute ||
-      prediction?.availableRoutes[0]
+      prediction?.availableRoutes?.[0] ||
+      fallbackRoute
     );
-  }, [prediction, tracking?.currentRouteId, activeTabRoute]);
+  }, [prediction, tracking?.currentRouteId, activeTabRoute, fallbackRoute]);
 
   const progress = tracking?.driverPosition?.progress ?? 32;
   const currentSpeed = tracking?.speedKmh ?? 28;
@@ -103,7 +124,11 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
       CUSTOMER_COORD
     ];
 
-    if (coords.length < 2) {
+    if (!coords || coords.length === 0) {
+      return { lat: HYDERABAD_CENTER[0], lng: HYDERABAD_CENTER[1], bearing: 0 };
+    }
+
+    if (coords.length === 1) {
       return { lat: coords[0][0], lng: coords[0][1], bearing: 0 };
     }
 
@@ -146,38 +171,54 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
     return { lat: last[0], lng: last[1], bearing: 0 };
   }, [activeRoute, progress]);
 
-  // Initialize Leaflet Map
+  // Initialize Leaflet Map safely
   useEffect(() => {
-    if (!mapContainerRef.current || mapInstanceRef.current) return;
+    if (!mapContainerRef.current) return;
 
-    const map = L.map(mapContainerRef.current, {
-      center: HYDERABAD_CENTER,
-      zoom: 14,
-      zoomControl: false,
-      attributionControl: false,
-      maxZoom: 18,
-      minZoom: 12
-    });
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
 
-    // Clean, high-resolution CartoDB Voyager Tile Layer
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19,
-      subdomains: 'abcd'
-    }).addTo(map);
+    // Reset container ID to prevent "Map container is already initialized"
+    if ((mapContainerRef.current as any)._leaflet_id) {
+      (mapContainerRef.current as any)._leaflet_id = null;
+    }
 
-    // Custom Zoom Controls
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    try {
+      const map = L.map(mapContainerRef.current, {
+        center: HYDERABAD_CENTER,
+        zoom: 14,
+        zoomControl: false,
+        attributionControl: false,
+        maxZoom: 18,
+        minZoom: 12
+      });
 
-    mapInstanceRef.current = map;
+      // Clean, high-resolution CartoDB Voyager Tile Layer
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        maxZoom: 19,
+        subdomains: 'abcd'
+      }).addTo(map);
 
-    // Pan / Drag listener to disable autoFollow if user manually explores
-    map.on('dragstart', () => {
-      setAutoFollow(false);
-    });
+      // Custom Zoom Controls
+      L.control.zoom({ position: 'bottomright' }).addTo(map);
+
+      mapInstanceRef.current = map;
+
+      // Pan / Drag listener to disable autoFollow if user manually explores
+      map.on('dragstart', () => {
+        setAutoFollow(false);
+      });
+    } catch (e) {
+      console.warn('Leaflet map initialization notice:', e);
+    }
 
     return () => {
-      map.remove();
-      mapInstanceRef.current = null;
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
     };
   }, []);
 
@@ -450,20 +491,24 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
   // Fit Entire Route Bounds
   const handleFitRouteBounds = useCallback(() => {
     const map = mapInstanceRef.current;
-    if (!map || !activeRoute.geoCoordinates) return;
-    const bounds = L.latLngBounds(activeRoute.geoCoordinates);
-    map.fitBounds(bounds, { padding: [60, 60], animate: true });
-    setAutoFollow(false);
+    if (!map || !activeRoute?.geoCoordinates || activeRoute.geoCoordinates.length === 0) return;
+    try {
+      const bounds = L.latLngBounds(activeRoute.geoCoordinates);
+      map.fitBounds(bounds, { padding: [60, 60], animate: true });
+      setAutoFollow(false);
+    } catch (e) {
+      console.warn('Error fitting route bounds:', e);
+    }
   }, [activeRoute]);
 
   // Event Log Ticker Data
   const recentEvents = useMemo(() => [
     { time: '4:21 PM', text: '🛵 Partner picked up order at Spice Route Kitchen', type: 'info' },
-    { time: '4:24 PM', text: `🚦 Traffic index: ${conditions.trafficLevel} across HITEC corridor`, type: 'traffic' },
-    { time: '4:25 PM', text: `🌧 Atmospheric node: ${conditions.weatherCondition.replace('_', ' ')}`, type: 'weather' },
-    { time: '4:26 PM', text: `🧠 AI optimized path: ${activeRoute.name.split('—')[0]}`, type: 'ai' },
-    { time: '4:28 PM', text: `🎯 Arrival projected at ~${eta} mins (${progress.toFixed(0)}% completed)`, type: 'eta' }
-  ], [conditions.trafficLevel, conditions.weatherCondition, activeRoute.name, eta, progress]);
+    { time: '4:24 PM', text: `🚦 Traffic index: ${conditions?.trafficLevel || 'NORMAL'} across HITEC corridor`, type: 'traffic' },
+    { time: '4:25 PM', text: `🌧 Atmospheric node: ${(conditions?.weatherCondition || 'CLEAR').replace(/_/g, ' ')}`, type: 'weather' },
+    { time: '4:26 PM', text: `🧠 AI optimized path: ${activeRoute?.name?.split('—')?.[0] || activeRoute?.name || 'Optimal Corridor'}`, type: 'ai' },
+    { time: '4:28 PM', text: `🎯 Arrival projected at ~${eta} mins (${(progress || 0).toFixed(0)}% completed)`, type: 'eta' }
+  ], [conditions?.trafficLevel, conditions?.weatherCondition, activeRoute?.name, eta, progress]);
 
   return (
     <div className={`relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xs ${className}`}>
@@ -605,7 +650,7 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
             <div className="rounded-lg bg-slate-50 p-1.5 text-center border border-slate-100">
               <span className="text-slate-400 block font-bold">Weather</span>
               <span className="font-black text-slate-700">
-                {conditions.weatherCondition.replace('_', ' ')}
+                {(conditions?.weatherCondition || 'CLEAR').replace(/_/g, ' ')}
               </span>
             </div>
 
@@ -630,8 +675,8 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              {prediction?.availableRoutes.map(route => {
-                const isSelected = activeRoute.id === route.id;
+              {(prediction?.availableRoutes || []).map(route => {
+                const isSelected = activeRoute?.id === route.id;
                 return (
                   <button
                     key={route.id}
@@ -643,7 +688,7 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
                     }`}
                   >
                     <div>
-                      <div className="text-[11px] truncate">{route.name.split('—')[0]}</div>
+                      <div className="text-[11px] truncate">{route.name?.split('—')?.[0] || route.name}</div>
                       <div className="text-[10px] text-slate-500">{route.distanceKm} km • {route.estimatedMinutes}m</div>
                     </div>
                     {route.isRecommended && (
