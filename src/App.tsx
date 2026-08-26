@@ -158,7 +158,7 @@ const MainDashboard: React.FC = () => {
   const isTrackingActive = activeTab === 'TWIN' || activeTab === 'TRACKING';
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-cyan-100 selection:text-cyan-900 font-sans pb-24 overflow-x-hidden">
+    <div className="min-h-screen bg-[#faf8f5] text-slate-900 selection:bg-cyan-100 selection:text-cyan-900 font-sans pb-24 overflow-x-hidden">
       
       {/* Top Navbar */}
       <Navbar />
@@ -171,11 +171,11 @@ const MainDashboard: React.FC = () => {
         
         {/* Environmental Stress Scenario Bar (Available on Home, Tracking, Pulse & Routes) */}
         {(activeTab === 'HOME' || isTrackingActive || activeTab === 'PULSE' || activeTab === 'ROUTES' || activeTab === 'DECISION_ROOM') && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-orange-200/80 bg-gradient-to-r from-orange-50/90 via-amber-50/70 to-cyan-50/70 p-3 shadow-2xs">
             <div className="flex items-center gap-2">
               <span className="flex h-2 w-2 rounded-full bg-cyan-600 animate-ping" />
-              <span className="text-xs font-bold text-slate-700">Live AI Environment:</span>
-              <span className="rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-mono text-slate-600 border border-slate-200">
+              <span className="text-xs font-bold text-slate-900">Live AI Environment:</span>
+              <span className="rounded-md bg-white/90 px-2 py-0.5 text-[11px] font-mono font-bold text-slate-800 border border-orange-200">
                 {conditions.trafficLevel} Traffic • {conditions.weatherCondition.replace('_', ' ')} • {conditions.distanceKm} km
               </span>
             </div>
@@ -184,21 +184,21 @@ const MainDashboard: React.FC = () => {
               <button
                 id="btn-preset-storm"
                 onClick={() => applyPreset('storm_traffic')}
-                className="rounded-xl border border-rose-200 bg-rose-50/80 px-2.5 py-1 text-xs font-bold text-rose-700 hover:bg-rose-100 transition-colors flex items-center gap-1"
+                className="rounded-xl border border-rose-300 bg-rose-100/80 px-2.5 py-1 text-xs font-bold text-rose-950 hover:bg-rose-200 transition-colors flex items-center gap-1 shadow-2xs"
               >
                 <span>🌧</span> Heavy Storm (+5m)
               </button>
               <button
                 id="btn-preset-kitchen"
                 onClick={() => applyPreset('kitchen_surge')}
-                className="rounded-xl border border-amber-200 bg-amber-50/80 px-2.5 py-1 text-xs font-bold text-amber-700 hover:bg-amber-100 transition-colors flex items-center gap-1"
+                className="rounded-xl border border-amber-300 bg-amber-100/80 px-2.5 py-1 text-xs font-bold text-amber-950 hover:bg-amber-200 transition-colors flex items-center gap-1 shadow-2xs"
               >
                 <span>🍕</span> Kitchen Surge (+8m)
               </button>
               <button
                 id="btn-preset-clear"
                 onClick={() => applyPreset('sunny_sprint')}
-                className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors flex items-center gap-1"
+                className="rounded-xl border border-emerald-300 bg-emerald-100/80 px-2.5 py-1 text-xs font-bold text-emerald-950 hover:bg-emerald-200 transition-colors flex items-center gap-1 shadow-2xs"
               >
                 <span>☀️</span> Clear Sprint (-4m)
               </button>

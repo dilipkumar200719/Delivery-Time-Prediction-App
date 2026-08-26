@@ -5,8 +5,6 @@ import { useApp } from '../context/AppContext';
 import { SUPPORTED_CITIES } from '../data/cities';
 import {
   Compass,
-  CloudRain,
-  Sun,
   MapPin,
   Maximize2,
   Crosshair,
@@ -18,16 +16,32 @@ import {
   Layers,
   Sparkles,
   ShieldCheck,
-  AlertTriangle,
-  ChevronRight,
-  TrendingUp,
-  Activity
+  Activity,
+  CheckCircle2
 } from 'lucide-react';
 import { RouteOption } from '../types';
 
 interface RealisticDeliveryMapProps {
   className?: string;
   heightClass?: string;
+}
+
+// Reliable high-quality delivery courier avatar
+const RIDER_AVATAR_IMG = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+
+// Geodesic distance helper for constant-speed interpolation across real road segments
+function getSegmentDistanceKm(p1: [number, number], p2: [number, number]): number {
+  const R = 6371; // Earth radius in km
+  const dLat = ((p2[0] - p1[0]) * Math.PI) / 180;
+  const dLng = ((p2[1] - p1[1]) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((p1[0] * Math.PI) / 180) *
+      Math.cos((p2[0] * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 }
 
 export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
@@ -40,7 +54,7 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
     prediction,
     activeOrder,
     selectedCity,
-    selectRoute
+    isDeliveryCompleted
   } = useApp();
 
   const cityInfo = SUPPORTED_CITIES[selectedCity] || SUPPORTED_CITIES.Vijayawada;
@@ -51,61 +65,96 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
   const restaurantMarkerRef = useRef<L.Marker | null>(null);
   const customerMarkerRef = useRef<L.Marker | null>(null);
   const activeRoutePolylineRef = useRef<L.Polyline | null>(null);
+  const traveledRoutePolylineRef = useRef<L.Polyline | null>(null);
   const altRoutePolylinesRef = useRef<L.Polyline[]>([]);
   const trafficPolylinesRef = useRef<L.Polyline[]>([]);
 
   // Map Controls State
   const [autoFollow, setAutoFollow] = useState<boolean>(true);
   const [showTraffic, setShowTraffic] = useState<boolean>(true);
-  const [showWeatherOverlay, setShowWeatherOverlay] = useState<boolean>(false);
   const [showRouteComparison, setShowRouteComparison] = useState<boolean>(false);
   const [isRiderCardOpen, setIsRiderCardOpen] = useState<boolean>(false);
-  const [mapTileTheme, setMapTileTheme] = useState<'osm' | 'voyager'>('osm');
+  const [mapTileTheme] = useState<'osm' | 'voyager'>('osm');
 
-  // Dynamic city coordinates
+  // Dynamic city coordinates & waypoints
   const centerCoord = cityInfo.center;
   const restCoord = cityInfo.restaurantCoord;
   const custCoord = cityInfo.customerCoord;
-
-  // Real geographic primary & alternate route coordinates
   const primaryRoadPath = cityInfo.primaryWaypoints;
   const alternateRoadPath = cityInfo.alternateWaypoints;
 
-  // Derive active route data
-  const activeRoute = useMemo<RouteOption>(() => {
-    return {
-      id: 'ROUTE_PRIMARY',
-      name: `${cityInfo.name} Primary Express Corridor`,
-      distanceKm: 3.6,
-      estimatedMinutes: 24,
-      trafficSummary: 'Moderate Arterial Flow',
-      weatherImpact: 'Normal Traction',
-      isRecommended: true,
-      riskLevel: 'LOW',
-      score: 96,
-      pathPoints: [{ x: 0, y: 0 }, { x: 100, y: 100 }],
-      highlightReason: cityInfo.primaryRoads,
-      geoCoordinates: primaryRoadPath
-    };
-  }, [cityInfo, primaryRoadPath]);
+  // Real-time tracking values
+  const rawProgress = tracking?.driverPosition?.progress ?? (isDeliveryCompleted ? 100 : 38);
+  const progress = isDeliveryCompleted ? 100 : Math.min(100, Math.max(0, rawProgress));
+  const currentSpeed = isDeliveryCompleted ? 0 : (tracking?.speedKmh ?? 29);
+  const remainingDist = isDeliveryCompleted ? '0.0' : Math.max(0.1, (3.6 * (1 - progress / 100))).toFixed(1);
+  const eta = isDeliveryCompleted ? 0 : (tracking?.etaMinutes ?? 24);
 
-  const progress = tracking?.driverPosition?.progress ?? 38;
-  const currentSpeed = tracking?.speedKmh ?? 29;
-  const remainingDist = Math.max(0.2, (3.6 * (1 - progress / 100))).toFixed(1);
-  const eta = tracking?.etaMinutes ?? 24;
-
-  // Calculate Courier Position along real road waypoints
-  const currentCourierGeo = useMemo(() => {
+  // High-precision Courier Position & Bearing Calculation along real road route
+  const { currentCourierGeo, traveledPath, remainingPath } = useMemo(() => {
     const coords = primaryRoadPath;
-    if (coords.length < 2) return { lat: centerCoord[0], lng: centerCoord[1], bearing: 0 };
+    if (!coords || coords.length < 2) {
+      return {
+        currentCourierGeo: { lat: centerCoord[0], lng: centerCoord[1], bearing: 0 },
+        traveledPath: coords,
+        remainingPath: coords
+      };
+    }
 
-    const fraction = Math.min(Math.max(progress / 100, 0), 1);
-    const totalSegments = coords.length - 1;
-    const segmentIndex = Math.min(Math.floor(fraction * totalSegments), totalSegments - 1);
-    const segmentFraction = (fraction * totalSegments) - segmentIndex;
+    if (progress <= 0) {
+      const p1 = coords[0];
+      const p2 = coords[1];
+      const dLat = p2[0] - p1[0];
+      const dLng = p2[1] - p1[1];
+      const bearing = (Math.atan2(dLng, dLat) * 180) / Math.PI;
+      return {
+        currentCourierGeo: { lat: p1[0], lng: p1[1], bearing },
+        traveledPath: [p1],
+        remainingPath: coords
+      };
+    }
 
-    const p1 = coords[segmentIndex];
-    const p2 = coords[segmentIndex + 1];
+    if (progress >= 100) {
+      const pLast = coords[coords.length - 1];
+      const pPrev = coords[coords.length - 2];
+      const dLat = pLast[0] - pPrev[0];
+      const dLng = pLast[1] - pPrev[1];
+      const bearing = (Math.atan2(dLng, dLat) * 180) / Math.PI;
+      return {
+        currentCourierGeo: { lat: pLast[0], lng: pLast[1], bearing },
+        traveledPath: coords,
+        remainingPath: [pLast]
+      };
+    }
+
+    // Compute segment distances
+    const segmentDistances: number[] = [];
+    let totalRouteDistance = 0;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const d = getSegmentDistanceKm(coords[i], coords[i + 1]);
+      segmentDistances.push(d);
+      totalRouteDistance += d;
+    }
+
+    const targetDistance = totalRouteDistance * (progress / 100);
+
+    let accumulatedDistance = 0;
+    let targetSegmentIndex = 0;
+    let segmentFraction = 0;
+
+    for (let i = 0; i < segmentDistances.length; i++) {
+      const segDist = segmentDistances[i];
+      if (accumulatedDistance + segDist >= targetDistance || i === segmentDistances.length - 1) {
+        targetSegmentIndex = i;
+        const remainingInSeg = targetDistance - accumulatedDistance;
+        segmentFraction = segDist > 0 ? Math.min(1, Math.max(0, remainingInSeg / segDist)) : 0;
+        break;
+      }
+      accumulatedDistance += segDist;
+    }
+
+    const p1 = coords[targetSegmentIndex];
+    const p2 = coords[targetSegmentIndex + 1] || coords[targetSegmentIndex];
 
     const lat = p1[0] + (p2[0] - p1[0]) * segmentFraction;
     const lng = p1[1] + (p2[1] - p1[1]) * segmentFraction;
@@ -114,10 +163,18 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
     const dLng = p2[1] - p1[1];
     const bearing = (Math.atan2(dLng, dLat) * 180) / Math.PI;
 
-    return { lat, lng, bearing };
+    const currentPoint: [number, number] = [lat, lng];
+    const traveled: [number, number][] = [...coords.slice(0, targetSegmentIndex + 1), currentPoint];
+    const remaining: [number, number][] = [currentPoint, ...coords.slice(targetSegmentIndex + 1)];
+
+    return {
+      currentCourierGeo: { lat, lng, bearing },
+      traveledPath: traveled,
+      remainingPath: remaining
+    };
   }, [primaryRoadPath, progress, centerCoord]);
 
-  // Leaflet Map Lifecycle
+  // Leaflet Map Initialization
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -136,7 +193,7 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
         minZoom: 11
       });
 
-      // Standard OSM Tile Layer with CartoDB fallback for crisp, clear roads & streets
+      // Standard OSM Crisp Tile Layer
       const tileUrl = mapTileTheme === 'osm'
         ? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
         : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
@@ -152,10 +209,11 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
       L.control.zoom({ position: 'bottomright' }).addTo(map);
       mapInstanceRef.current = map;
 
-      // Invalidate size on container resize and initial frame
+      // Invalidate sizes for sharp rendering
       const timer1 = setTimeout(() => map.invalidateSize(), 100);
       const timer2 = setTimeout(() => map.invalidateSize(), 400);
 
+      // Disable auto-follow when user manually drags/pans map
       map.on('dragstart', () => {
         setAutoFollow(false);
       });
@@ -169,11 +227,11 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
         }
       };
     } catch (err) {
-      console.warn('Map initialization:', err);
+      console.warn('Map initialization error:', err);
     }
   }, [selectedCity, mapTileTheme]);
 
-  // ResizeObserver to handle layout shifts dynamically
+  // Handle ResizeObserver
   useEffect(() => {
     if (!mapContainerRef.current) return;
     const ro = new ResizeObserver(() => {
@@ -185,21 +243,21 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
     return () => ro.disconnect();
   }, []);
 
-  // Update Markers (Restaurant & Customer)
+  // Update Restaurant & Customer Home Markers
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    // 1. Restaurant Marker
+    // 1. Restaurant Marker (Warm Orange Theme)
     if (restaurantMarkerRef.current) restaurantMarkerRef.current.remove();
     const restIcon = L.divIcon({
       className: 'custom-rest-marker',
       html: `
         <div class="relative flex flex-col items-center cursor-pointer group">
-          <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-xl border-2 border-white transform group-hover:scale-110 transition-transform">
+          <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white shadow-xl border-2 border-white transform group-hover:scale-110 transition-transform">
             <span style="font-size: 20px;">🍽️</span>
           </div>
-          <div class="mt-1 whitespace-nowrap rounded-lg bg-slate-900 px-2 py-0.5 text-[10px] font-black text-white shadow-md border border-slate-700">
+          <div class="mt-1 whitespace-nowrap rounded-lg bg-slate-900/90 px-2.5 py-0.5 text-[10px] font-black text-amber-300 shadow-md border border-amber-500/30">
             ${cityInfo.restaurantName}
           </div>
         </div>
@@ -211,29 +269,29 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
     const rMarker = L.marker(restCoord, { icon: restIcon })
       .addTo(map)
       .bindPopup(`
-        <div class="p-2 space-y-1.5 min-w-[200px]">
+        <div class="p-2.5 space-y-1.5 min-w-[210px]">
           <div class="flex items-center justify-between">
             <h4 class="font-black text-xs text-slate-900">${cityInfo.restaurantName}</h4>
-            <span class="text-[10px] font-bold text-amber-600">⭐ ${cityInfo.restaurantRating}</span>
+            <span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">⭐ ${cityInfo.restaurantRating}</span>
           </div>
           <p class="text-[11px] text-slate-600">${cityInfo.restaurantCuisine}</p>
-          <span class="inline-block rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
+          <div class="rounded-lg bg-orange-50 p-1.5 text-[10px] font-bold text-orange-900 border border-orange-200">
             Kitchen Preparing • Ready in ~${conditions.restaurantPrepTime || 8} min
-          </span>
+          </div>
         </div>
       `);
     restaurantMarkerRef.current = rMarker;
 
-    // 2. Customer Home Marker
+    // 2. Customer Home Destination Marker (Fresh Emerald Green Theme)
     if (customerMarkerRef.current) customerMarkerRef.current.remove();
     const custIcon = L.divIcon({
       className: 'custom-cust-marker',
       html: `
         <div class="relative flex flex-col items-center cursor-pointer group">
-          <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-xl border-2 border-white transform group-hover:scale-110 transition-transform">
+          <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white shadow-xl border-2 border-white transform group-hover:scale-110 transition-transform">
             <span style="font-size: 20px;">🏠</span>
           </div>
-          <div class="mt-1 whitespace-nowrap rounded-lg bg-emerald-950 px-2.5 py-0.5 text-[10px] font-black text-white shadow-md border border-emerald-800">
+          <div class="mt-1 whitespace-nowrap rounded-lg bg-emerald-950 px-2.5 py-0.5 text-[10px] font-black text-emerald-200 shadow-md border border-emerald-700">
             Your Location (Home)
           </div>
         </div>
@@ -245,101 +303,140 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
     const cMarker = L.marker(custCoord, { icon: custIcon })
       .addTo(map)
       .bindPopup(`
-        <div class="p-2 space-y-1 min-w-[200px]">
+        <div class="p-2.5 space-y-1.5 min-w-[210px]">
           <h4 class="font-black text-xs text-slate-900">Your Delivery Address</h4>
           <p class="text-[11px] text-slate-600">${cityInfo.customerAddress}</p>
-          <span class="inline-block rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
+          <div class="rounded-lg bg-emerald-50 p-1.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
             🟢 Ready for Courier Handover
-          </span>
+          </div>
         </div>
       `);
     customerMarkerRef.current = cMarker;
 
   }, [restCoord, custCoord, cityInfo, conditions.restaurantPrepTime]);
 
-  // Update Route Polylines
+  // Update Route Polylines (Live Traveled vs Upcoming + Traffic)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
     if (activeRoutePolylineRef.current) activeRoutePolylineRef.current.remove();
+    if (traveledRoutePolylineRef.current) traveledRoutePolylineRef.current.remove();
     altRoutePolylinesRef.current.forEach(p => p.remove());
     altRoutePolylinesRef.current = [];
     trafficPolylinesRef.current.forEach(p => p.remove());
     trafficPolylinesRef.current = [];
 
-    // Optional comparison routes (shown ONLY when user clicks Compare Routes)
+    // Optional comparison routes
     if (showRouteComparison) {
       const altPoly = L.polyline(alternateRoadPath, {
-        color: '#64748b',
-        weight: 5,
-        dashArray: '8, 8',
-        opacity: 0.7,
+        color: '#94a3b8',
+        weight: 4,
+        dashArray: '6, 6',
+        opacity: 0.8,
         lineCap: 'round',
         lineJoin: 'round'
-      }).addTo(map).bindTooltip('Alternate Route (27 min • Heavy Traffic)', { permanent: false });
+      }).addTo(map).bindTooltip('Alternate Route (27 min • Moderate Delay)', { permanent: false });
       altRoutePolylinesRef.current.push(altPoly);
     }
 
-    // Active Primary Route Polyline (Glow border + bright blue core)
+    // 1. Full Outer Route Outline / Glow
     const bgBorderPoly = L.polyline(primaryRoadPath, {
-      color: '#0369a1',
-      weight: 8,
-      opacity: 0.5,
-      lineCap: 'round',
-      lineJoin: 'round'
-    }).addTo(map);
-
-    const activePoly = L.polyline(primaryRoadPath, {
       color: '#0284c7',
-      weight: 5,
-      opacity: 0.95,
+      weight: 8,
+      opacity: 0.35,
       lineCap: 'round',
       lineJoin: 'round'
     }).addTo(map);
-
-    activeRoutePolylineRef.current = activePoly;
     altRoutePolylinesRef.current.push(bgBorderPoly);
 
-    // Live Traffic Visualizer along segments
+    // 2. Traveled Route Polyline (Green/Cyan vibrant stroke)
+    if (traveledPath.length >= 2) {
+      const traveledPoly = L.polyline(traveledPath, {
+        color: '#10b981',
+        weight: 5,
+        opacity: 0.95,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(map);
+      traveledRoutePolylineRef.current = traveledPoly;
+    }
+
+    // 3. Remaining Upcoming Route Polyline (Deep Cyan / Sky stroke)
+    if (remainingPath.length >= 2) {
+      const remainingPoly = L.polyline(remainingPath, {
+        color: '#0284c7',
+        weight: 5,
+        opacity: 0.9,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(map);
+      activeRoutePolylineRef.current = remainingPoly;
+    }
+
+    // 4. Live Traffic Segments
     if (showTraffic && primaryRoadPath.length >= 3) {
-      const seg1 = L.polyline([primaryRoadPath[0], primaryRoadPath[1]], { color: '#10b981', weight: 4, opacity: 0.9 }).addTo(map);
-      const seg2 = L.polyline([primaryRoadPath[1], primaryRoadPath[2]], { color: '#f59e0b', weight: 4, opacity: 0.9 }).addTo(map);
-      const seg3 = L.polyline([primaryRoadPath[2], primaryRoadPath[3] || primaryRoadPath[2]], { color: '#10b981', weight: 4, opacity: 0.9 }).addTo(map);
+      const seg1 = L.polyline([primaryRoadPath[0], primaryRoadPath[1]], { color: '#10b981', weight: 4, opacity: 0.8 }).addTo(map);
+      const seg2 = L.polyline([primaryRoadPath[1], primaryRoadPath[2]], { color: '#f59e0b', weight: 4, opacity: 0.8 }).addTo(map);
+      const seg3 = L.polyline([primaryRoadPath[2], primaryRoadPath[3] || primaryRoadPath[2]], { color: '#10b981', weight: 4, opacity: 0.8 }).addTo(map);
       trafficPolylinesRef.current.push(seg1, seg2, seg3);
     }
-  }, [primaryRoadPath, alternateRoadPath, showRouteComparison, showTraffic]);
+  }, [primaryRoadPath, alternateRoadPath, showRouteComparison, showTraffic, traveledPath, remainingPath]);
 
-  // Update Courier Marker
+  // Update Realistic Delivery Partner Avatar Marker
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
     const { lat, lng, bearing } = currentCourierGeo;
 
+    // Delivery Partner HTML Marker with Image Avatar, Pulse Ring, Vehicle Badge, and Direction Arrow
     const courierHtml = `
-      <div class="relative flex flex-col items-center cursor-pointer" onclick="window.__openRiderCard && window.__openRiderCard()">
-        <!-- Radar Pulse Ring -->
-        <div class="absolute -top-1.5 -left-1.5 h-14 w-14 rounded-full bg-cyan-500/25 animate-ping pointer-events-none"></div>
+      <div class="relative flex flex-col items-center cursor-pointer select-none group" id="leaflet-delivery-rider-marker">
+        <!-- Live Radar Ping Wave -->
+        ${!isDeliveryCompleted ? '<div class="absolute -top-1.5 -left-1.5 h-16 w-16 rounded-full bg-cyan-500/25 animate-ping pointer-events-none"></div>' : ''}
 
-        <!-- Vehicle Center Marker with Direction -->
-        <div class="relative z-10 flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-600 text-white shadow-2xl border-2 border-white transition-transform duration-300" style="transform: rotate(${bearing}deg);">
-          <span style="font-size: 20px;">🛵</span>
+        <!-- Rider Marker Card with Real Image Avatar -->
+        <div class="relative z-10 flex items-center gap-1.5 rounded-2xl bg-white/98 backdrop-blur-md p-1.5 shadow-2xl border-2 ${isDeliveryCompleted ? 'border-emerald-500 ring-2 ring-emerald-300/50' : 'border-cyan-500 ring-2 ring-cyan-300/40'} transform group-hover:scale-105 transition-all">
+          
+          <!-- Circular Courier Photo / Avatar -->
+          <div class="relative h-10 w-10 overflow-hidden rounded-xl border border-slate-200 bg-cyan-50 shadow-inner shrink-0">
+            <img 
+              src="${RIDER_AVATAR_IMG}" 
+              alt="Rahul Kumar - Delivery Partner"
+              class="h-full w-full object-cover"
+              onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80';"
+            />
+            <!-- Scooter Icon Badge on Avatar Corner -->
+            <span class="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-cyan-600 text-white text-[9px] shadow-xs">
+              🛵
+            </span>
+          </div>
+
+          <!-- Rider Live Telemetry & Name Column -->
+          <div class="flex flex-col pr-1 text-left">
+            <div class="flex items-center gap-1">
+              <span class="h-2 w-2 rounded-full ${isDeliveryCompleted ? 'bg-emerald-500' : 'bg-emerald-500 animate-pulse'}"></span>
+              <span class="text-[10px] font-black text-slate-900 tracking-tight leading-tight">Rahul Kumar</span>
+            </div>
+            <div class="mt-0.5 flex items-center gap-1 text-[9px] font-bold text-cyan-800">
+              <span>${isDeliveryCompleted ? 'Delivered' : 'Ather EV'}</span>
+              <span class="text-slate-300">•</span>
+              <span class="font-mono text-emerald-600">${isDeliveryCompleted ? '0 km/h' : `${currentSpeed} km/h`}</span>
+            </div>
+          </div>
         </div>
 
-        <!-- Live Status Pill Below -->
-        <div class="mt-1 whitespace-nowrap rounded-lg bg-slate-950/95 px-2.5 py-0.5 text-[9px] font-black text-cyan-300 shadow-xl border border-cyan-500/40 flex items-center gap-1">
-          <span class="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
-          <span>Rahul Kumar • ${currentSpeed} km/h</span>
-        </div>
+        <!-- Directional Pointer Triangle -->
+        <div class="h-0 w-0 border-x-5 border-x-transparent border-t-6 ${isDeliveryCompleted ? 'border-t-emerald-500' : 'border-t-cyan-500'} -mt-0.5 shadow-sm"></div>
       </div>
     `;
 
     const courierIcon = L.divIcon({
       className: 'custom-courier-marker',
       html: courierHtml,
-      iconSize: [160, 64],
-      iconAnchor: [80, 30]
+      iconSize: [160, 56],
+      iconAnchor: [80, 28]
     });
 
     if (!courierMarkerRef.current) {
@@ -351,10 +448,11 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
       courierMarkerRef.current.setIcon(courierIcon);
     }
 
-    if (autoFollow) {
+    // Auto-follow rider when enabled
+    if (autoFollow && !isDeliveryCompleted) {
       map.panTo([lat, lng], { animate: true, duration: 0.6 });
     }
-  }, [currentCourierGeo, currentSpeed, autoFollow]);
+  }, [currentCourierGeo, currentSpeed, autoFollow, isDeliveryCompleted]);
 
   // Recenter Courier
   const handleRecenterCourier = useCallback(() => {
@@ -378,12 +476,12 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
   }, [primaryRoadPath]);
 
   return (
-    <div className={`overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xs ${className}`}>
+    <div className={`overflow-hidden rounded-3xl border border-cyan-100 bg-white shadow-sm ${className}`}>
       
-      {/* Top Map Control Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/90 px-4 py-3 sm:px-6">
+      {/* Top Map Control Bar (Colorful Framing) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-cyan-100/80 bg-gradient-to-r from-cyan-50/90 via-sky-50/60 to-emerald-50/40 px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-700 border border-cyan-100">
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-cyan-600 text-white shadow-xs">
             <Compass className="h-4.5 w-4.5" />
           </div>
           <div>
@@ -391,11 +489,11 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
               <span className="text-sm font-black tracking-tight text-slate-900">
                 Live Delivery Route &amp; Real-World Map
               </span>
-              <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
+              <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-900 border border-emerald-200">
                 📍 {cityInfo.name}
               </span>
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-slate-600">
               {cityInfo.primaryRoads} • {remainingDist} km remaining
             </p>
           </div>
@@ -406,10 +504,11 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
           
           {/* Traffic Toggle */}
           <button
+            id="map-traffic-toggle-btn"
             onClick={() => setShowTraffic(!showTraffic)}
             className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all border ${
               showTraffic
-                ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                ? 'border-emerald-400 bg-emerald-50 text-emerald-900 shadow-2xs'
                 : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
             }`}
             title="Toggle Live Route Traffic Flow"
@@ -420,10 +519,11 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
 
           {/* Compare Routes Button */}
           <button
+            id="map-compare-routes-btn"
             onClick={() => setShowRouteComparison(!showRouteComparison)}
             className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all border ${
               showRouteComparison
-                ? 'border-cyan-400 bg-cyan-50 text-cyan-800'
+                ? 'border-cyan-400 bg-cyan-50 text-cyan-900 shadow-2xs'
                 : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
             }`}
           >
@@ -433,10 +533,11 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
 
           {/* Follow Rider Button */}
           <button
+            id="map-follow-rider-btn"
             onClick={handleRecenterCourier}
-            className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all border ${
+            className={`flex items-center gap-1 rounded-xl px-3 py-1.5 text-xs font-bold transition-all border ${
               autoFollow
-                ? 'border-cyan-500 bg-cyan-600 text-white shadow-xs'
+                ? 'border-cyan-600 bg-cyan-600 text-white shadow-xs'
                 : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
             }`}
           >
@@ -446,8 +547,9 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
 
           {/* Fit Route Button */}
           <button
+            id="map-fit-route-btn"
             onClick={handleFitRouteBounds}
-            className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-xs"
+            className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-2xs"
           >
             <Maximize2 className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Fit Route</span>
@@ -455,20 +557,20 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
         </div>
       </div>
 
-      {/* Main Map Container Canvas */}
+      {/* Main Leaflet Map Container Canvas */}
       <div className={`relative w-full ${heightClass}`}>
         
         {/* Leaflet DOM container */}
         <div ref={mapContainerRef} className="absolute inset-0 h-full w-full bg-slate-100" />
 
-        {/* Top-Left Floating Live ETA Summary Card */}
-        <div className="absolute top-4 left-4 z-20 w-64 sm:w-72 rounded-2xl border border-slate-200/90 bg-white/95 p-4 shadow-xl backdrop-blur-md">
+        {/* Top-Left Floating Live ETA Summary Card (Colorful Gradient) */}
+        <div className="absolute top-4 left-4 z-20 w-64 sm:w-72 rounded-2xl border border-cyan-200 bg-white/95 p-4 shadow-xl backdrop-blur-md">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <span className="text-[10px] font-black uppercase tracking-wider text-cyan-900 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-cyan-600" />
               AI Predicted Arrival
             </span>
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-900 border border-emerald-200">
               92% High Confidence
             </span>
           </div>
@@ -479,25 +581,34 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
                 {eta} <span className="text-sm font-bold text-cyan-700">MIN</span>
               </div>
               <p className="text-[11px] font-medium text-slate-500 mt-0.5">
-                Expected ~{new Date(Date.now() + eta * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {isDeliveryCompleted
+                  ? 'Delivered at Doorstep'
+                  : `Expected ~${new Date(Date.now() + eta * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
               </p>
             </div>
 
             <div className="text-right">
               <div className="text-xs font-black text-slate-900">{remainingDist} km left</div>
-              <div className="text-[10px] font-mono text-emerald-700 font-bold">{currentSpeed} km/h cruising</div>
+              <div className="text-[10px] font-mono text-emerald-700 font-bold">
+                {isDeliveryCompleted ? 'Delivered' : `${currentSpeed} km/h cruising`}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Delivery Partner Floating Card (Clickable on Map) */}
-        <div className="absolute bottom-4 left-4 z-20 w-72 sm:w-80 rounded-2xl border border-slate-200/90 bg-white/95 p-3.5 shadow-xl backdrop-blur-md">
+        <div className="absolute bottom-4 left-4 z-20 w-72 sm:w-80 rounded-2xl border border-cyan-200 bg-white/95 p-3.5 shadow-xl backdrop-blur-md">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="relative">
-                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-600 text-white font-black text-sm shadow-md">
-                  RK
-                </div>
+                <img
+                  src={RIDER_AVATAR_IMG}
+                  alt="Rahul Kumar"
+                  className="h-11 w-11 rounded-2xl object-cover border-2 border-cyan-500 shadow-sm"
+                  onError={(e) => {
+                    (e.target as HTMLElement).style.display = 'none';
+                  }}
+                />
                 <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white text-[9px] font-bold border-2 border-white">
                   ✓
                 </span>
@@ -505,21 +616,21 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
               <div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs font-black text-slate-900">Rahul Kumar</span>
-                  <span className="flex items-center gap-0.5 text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                  <span className="flex items-center gap-0.5 text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
                     <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
                     4.8
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
+                <p className="text-[10px] text-slate-600 flex items-center gap-1 mt-0.5">
                   <Bike className="h-3 w-3 text-cyan-600" />
-                  <span>Ather 450X EV • 🟢 On the way</span>
+                  <span>Ather 450X EV • {isDeliveryCompleted ? '🟢 Handed Over' : '🟢 On the way'}</span>
                 </p>
               </div>
             </div>
 
             <button
               onClick={() => setIsRiderCardOpen(true)}
-              className="rounded-xl bg-slate-100 hover:bg-cyan-50 hover:text-cyan-800 text-slate-700 px-3 py-1.5 text-xs font-bold border border-slate-200 transition-colors"
+              className="rounded-xl bg-cyan-50 hover:bg-cyan-100 text-cyan-900 px-3 py-1.5 text-xs font-bold border border-cyan-200 transition-colors"
             >
               Partner Card
             </button>
@@ -528,7 +639,7 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
 
         {/* Optional Route Comparison Overlay */}
         {showRouteComparison && (
-          <div className="absolute top-4 right-4 z-20 w-64 rounded-2xl border border-slate-200/90 bg-white/95 p-3.5 shadow-xl backdrop-blur-md space-y-2">
+          <div className="absolute top-4 right-4 z-20 w-64 rounded-2xl border border-cyan-200 bg-white/95 p-3.5 shadow-xl backdrop-blur-md space-y-2">
             <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
               <span className="text-xs font-bold text-slate-900">Corridor Options</span>
               <button
@@ -540,9 +651,7 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <button
-                className="w-full text-left rounded-xl p-2.5 text-xs transition-all border border-cyan-500 bg-cyan-50/80 font-bold text-cyan-950 shadow-xs"
-              >
+              <div className="w-full rounded-xl p-2.5 text-xs border border-cyan-500 bg-cyan-50/80 font-bold text-cyan-950 shadow-2xs">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold">Recommended Corridor</span>
                   <span className="rounded bg-cyan-600 px-1.5 py-0.2 text-[9px] font-black text-white">
@@ -550,13 +659,11 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
                   </span>
                 </div>
                 <div className="text-[10px] text-slate-600 mt-1">
-                  24 min • 3.6 km (Fast transit, clear flyover)
+                  24 min • 3.6 km (Fast transit, flyover route)
                 </div>
-              </button>
+              </div>
 
-              <button
-                className="w-full text-left rounded-xl p-2.5 text-xs transition-all border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
-              >
+              <div className="w-full rounded-xl p-2.5 text-xs border border-slate-200 bg-white text-slate-700">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold">Alternate Side Roads</span>
                   <span className="text-[9px] font-medium text-slate-400">
@@ -564,9 +671,9 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
                   </span>
                 </div>
                 <div className="text-[10px] text-slate-500 mt-1">
-                  27 min • 4.1 km (Local market congestion)
+                  27 min • 4.1 km (Local market delay)
                 </div>
-              </button>
+              </div>
             </div>
           </div>
         )}
@@ -574,27 +681,27 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
       </div>
 
       {/* Delivery Lifecycle Step Bar */}
-      <div className="border-t border-slate-100 bg-slate-50/80 p-4 sm:px-6">
-        <div className="flex items-center justify-between text-xs font-bold text-slate-700 pb-2">
-          <span>Delivery Progress Status</span>
-          <span className="text-cyan-800 font-mono font-black">{progress.toFixed(0)}% Completed</span>
+      <div className="border-t border-cyan-100 bg-gradient-to-r from-orange-50/40 via-amber-50/20 to-cyan-50/40 p-4 sm:px-6">
+        <div className="flex items-center justify-between text-xs font-bold text-slate-800 pb-2">
+          <span>Delivery Progress Timeline</span>
+          <span className="text-cyan-900 font-mono font-black">{progress.toFixed(0)}% Completed</span>
         </div>
         
         <div className="grid grid-cols-5 gap-1.5 text-[10px] text-center font-bold">
-          <div className={`p-2 rounded-xl border ${progress >= 0 ? 'bg-cyan-50 border-cyan-300 text-cyan-950' : 'bg-white border-slate-200 text-slate-400'}`}>
+          <div className={`p-2 rounded-xl border transition-all ${progress >= 0 ? 'bg-orange-100 border-orange-300 text-orange-950' : 'bg-white border-slate-200 text-slate-400'}`}>
             ✓ Confirmed
           </div>
-          <div className={`p-2 rounded-xl border ${progress >= 15 ? 'bg-cyan-50 border-cyan-300 text-cyan-950' : 'bg-white border-slate-200 text-slate-400'}`}>
+          <div className={`p-2 rounded-xl border transition-all ${progress >= 15 ? 'bg-amber-100 border-amber-300 text-amber-950' : 'bg-white border-slate-200 text-slate-400'}`}>
             ✓ Preparing
           </div>
-          <div className={`p-2 rounded-xl border ${progress >= 35 ? 'bg-cyan-600 border-cyan-600 text-white shadow-xs' : 'bg-white border-slate-200 text-slate-400'}`}>
+          <div className={`p-2 rounded-xl border transition-all ${progress >= 35 && progress < 85 ? 'bg-cyan-600 border-cyan-600 text-white shadow-xs' : (progress >= 85 ? 'bg-cyan-100 border-cyan-300 text-cyan-950' : 'bg-white border-slate-200 text-slate-400')}`}>
             ● On the Way
           </div>
-          <div className={`p-2 rounded-xl border ${progress >= 85 ? 'bg-cyan-50 border-cyan-300 text-cyan-950' : 'bg-white border-slate-200 text-slate-400'}`}>
+          <div className={`p-2 rounded-xl border transition-all ${progress >= 85 && progress < 100 ? 'bg-cyan-600 border-cyan-600 text-white shadow-xs' : (progress >= 100 ? 'bg-emerald-100 border-emerald-300 text-emerald-950' : 'bg-white border-slate-200 text-slate-400')}`}>
             ○ Arriving Soon
           </div>
-          <div className={`p-2 rounded-xl border ${progress >= 100 ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-400'}`}>
-            ○ Delivered
+          <div className={`p-2 rounded-xl border transition-all ${progress >= 100 ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs' : 'bg-white border-slate-200 text-slate-400'}`}>
+            {progress >= 100 ? '✓ Delivered' : '○ Delivered'}
           </div>
         </div>
       </div>
@@ -602,12 +709,12 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
       {/* Full Delivery Partner Modal */}
       {isRiderCardOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="relative w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4">
+          <div className="relative w-full max-w-sm rounded-3xl border border-cyan-100 bg-white p-6 shadow-2xl space-y-4">
             
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
                 <Bike className="h-4 w-4 text-cyan-600" />
-                <span>Delivery Partner Card</span>
+                <span>Delivery Partner Profile</span>
               </div>
               <button
                 onClick={() => setIsRiderCardOpen(false)}
@@ -618,30 +725,44 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
             </div>
 
             <div className="flex items-center gap-3.5 pt-1">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-600 text-white font-black text-xl shadow-md">
-                RK
-              </div>
+              <img
+                src={RIDER_AVATAR_IMG}
+                alt="Rahul Kumar"
+                className="h-16 w-16 rounded-2xl object-cover border-2 border-cyan-500 shadow-md"
+              />
               <div>
                 <h3 className="text-base font-black text-slate-900">Rahul Kumar</h3>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                  <span className="flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                     <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
                     4.8 (1,420+ deliveries)
                   </span>
                 </div>
-                <span className="text-xs text-slate-500 block mt-1">
+                <span className="text-xs text-slate-600 block mt-1">
                   Ather 450X EV • 🟢 Verified Partner
                 </span>
+              </div>
+            </div>
+
+            {/* Current Ride Telemetry */}
+            <div className="grid grid-cols-2 gap-2 rounded-2xl bg-cyan-50/70 border border-cyan-200 p-3 text-center">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Distance</span>
+                <span className="text-sm font-black text-cyan-950">{remainingDist} km</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-500 block">Estimated ETA</span>
+                <span className="text-sm font-black text-cyan-950">{eta} min</span>
               </div>
             </div>
 
             {/* Delivery Handover PIN */}
             <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3.5 flex items-center justify-between">
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Delivery Handover PIN</span>
-                <span className="text-xs text-slate-600 font-medium">Share with rider at doorstep</span>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Doorstep Handover PIN</span>
+                <span className="text-xs text-slate-600 font-medium">Share with Rahul at delivery</span>
               </div>
-              <span className="text-lg font-mono font-black text-cyan-800 bg-cyan-100/90 px-3 py-1 rounded-xl border border-cyan-300">
+              <span className="text-lg font-mono font-black text-cyan-800 bg-cyan-100 px-3 py-1 rounded-xl border border-cyan-300">
                 4829
               </span>
             </div>
@@ -649,14 +770,14 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
             {/* Actions: Call & Message */}
             <div className="grid grid-cols-2 gap-2 pt-2">
               <button
-                onClick={() => alert('Calling delivery partner (Masked number: +91 98480 XXXXX)...')}
+                onClick={() => alert('Connecting call with delivery partner Rahul Kumar (masked privacy proxy)...')}
                 className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 p-2.5 text-xs font-bold transition-colors"
               >
                 <Phone className="h-3.5 w-3.5 text-cyan-700" />
                 <span>Call Partner</span>
               </button>
               <button
-                onClick={() => alert('Live chat with Rahul Kumar is open in the order message center.')}
+                onClick={() => alert('Opening live chat message thread with Rahul Kumar.')}
                 className="flex items-center justify-center gap-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white p-2.5 text-xs font-bold transition-colors"
               >
                 <MessageSquare className="h-3.5 w-3.5" />
