@@ -1,185 +1,123 @@
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { useApp } from '../context/AppContext';
+import { SUPPORTED_CITIES } from '../data/cities';
 import {
-  Navigation,
   Compass,
-  Layers,
   CloudRain,
   Sun,
-  CloudLightning,
-  AlertTriangle,
-  RotateCcw,
+  MapPin,
+  Maximize2,
+  Crosshair,
+  Phone,
+  MessageSquare,
+  Bike,
+  Star,
+  X,
+  Layers,
   Sparkles,
   ShieldCheck,
-  ChevronDown,
-  ChevronUp,
-  MapPin,
-  Clock,
-  Gauge,
-  Activity,
-  CheckCircle2,
-  Car,
-  Maximize2,
-  Crosshair
+  AlertTriangle,
+  ChevronRight,
+  TrendingUp,
+  Activity
 } from 'lucide-react';
-import { RouteOption, TrafficLevel } from '../types';
+import { RouteOption } from '../types';
 
 interface RealisticDeliveryMapProps {
   className?: string;
   heightClass?: string;
 }
 
-// Hyderabad Geographic Coordinates
-const HYDERABAD_CENTER: [number, number] = [17.4420, 78.3710];
-const RESTAURANT_COORD: [number, number] = [17.4483, 78.3915]; // Madhapur Main Road
-const CUSTOMER_COORD: [number, number] = [17.4320, 78.3490]; // Gachibowli Financial District
-
-// Landmark Waypoints
-const LANDMARKS = [
-  { name: 'Madhapur Metro', coords: [17.4498, 78.3930], type: 'metro' },
-  { name: 'HITEC Cyber Towers', coords: [17.4504, 78.3808], type: 'landmark' },
-  { name: 'Inorbit Mall / Durgam Cheruvu', coords: [17.4390, 78.3850], type: 'landmark' },
-  { name: 'Kondapur Junction', coords: [17.4640, 78.3680], type: 'junction' },
-  { name: 'Knowledge City / T-Hub', coords: [17.4350, 78.3690], type: 'tech' },
-  { name: 'Bio-Diversity Junction', coords: [17.4410, 78.3650], type: 'junction' },
-  { name: 'Gachibowli Flyover', coords: [17.4360, 78.3540], type: 'flyover' }
-];
-
 export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
   className = '',
-  heightClass = 'h-[540px] sm:h-[620px]'
+  heightClass = 'h-[500px] sm:h-[580px]'
 }) => {
   const {
     tracking,
     conditions,
     prediction,
-    selectRoute,
-    updateConditions
+    activeOrder,
+    selectedCity,
+    selectRoute
   } = useApp();
+
+  const cityInfo = SUPPORTED_CITIES[selectedCity] || SUPPORTED_CITIES.Vijayawada;
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const courierMarkerRef = useRef<L.Marker | null>(null);
   const restaurantMarkerRef = useRef<L.Marker | null>(null);
   const customerMarkerRef = useRef<L.Marker | null>(null);
-  const landmarkMarkersRef = useRef<L.Marker[]>([]);
-  const incidentMarkersRef = useRef<L.Marker[]>([]);
   const activeRoutePolylineRef = useRef<L.Polyline | null>(null);
   const altRoutePolylinesRef = useRef<L.Polyline[]>([]);
-  const trafficSegmentPolylinesRef = useRef<L.Polyline[]>([]);
+  const trafficPolylinesRef = useRef<L.Polyline[]>([]);
 
-  // Map Interactive State
+  // Map Controls State
   const [autoFollow, setAutoFollow] = useState<boolean>(true);
   const [showTraffic, setShowTraffic] = useState<boolean>(true);
-  const [showWeatherOverlay, setShowWeatherOverlay] = useState<boolean>(true);
-  const [showLegend, setShowLegend] = useState<boolean>(false);
-  const [showEvents, setShowEvents] = useState<boolean>(true);
-  const [activeTabRoute, setActiveTabRoute] = useState<string>('ROUTE_C');
+  const [showWeatherOverlay, setShowWeatherOverlay] = useState<boolean>(false);
+  const [showRouteComparison, setShowRouteComparison] = useState<boolean>(false);
+  const [isRiderCardOpen, setIsRiderCardOpen] = useState<boolean>(false);
+  const [mapTileTheme, setMapTileTheme] = useState<'osm' | 'voyager'>('osm');
 
-  // Default fallback route for absolute safety
-  const fallbackRoute: RouteOption = useMemo(() => ({
-    id: 'ROUTE_C',
-    name: 'Route C — Knowledge City Green Corridor',
-    distanceKm: 4.2,
-    estimatedMinutes: 18,
-    trafficSummary: 'Optimal AI Transit Path',
-    weatherImpact: 'Low Friction (Dry Road)',
-    isRecommended: true,
-    riskLevel: 'LOW',
-    score: 94,
-    pathPoints: [
-      { x: 50, y: 50 },
-      { x: 150, y: 120 },
-      { x: 300, y: 220 },
-      { x: 450, y: 350 }
-    ],
-    highlightReason: 'Fastest transit time with minimal traffic bottlenecks',
-    geoCoordinates: [
-      RESTAURANT_COORD,
-      [17.4504, 78.3808],
-      [17.4390, 78.3850],
-      [17.4350, 78.3690],
-      [17.4360, 78.3540],
-      CUSTOMER_COORD
-    ]
-  }), []);
+  // Dynamic city coordinates
+  const centerCoord = cityInfo.center;
+  const restCoord = cityInfo.restaurantCoord;
+  const custCoord = cityInfo.customerCoord;
 
-  // Derive active route from prediction or tracking with guaranteed fallback
-  const activeRoute = useMemo(() => {
-    return (
-      prediction?.availableRoutes?.find(r => r.id === (tracking?.currentRouteId || activeTabRoute)) ||
-      prediction?.recommendedRoute ||
-      prediction?.availableRoutes?.[0] ||
-      fallbackRoute
-    );
-  }, [prediction, tracking?.currentRouteId, activeTabRoute, fallbackRoute]);
+  // Real geographic primary & alternate route coordinates
+  const primaryRoadPath = cityInfo.primaryWaypoints;
+  const alternateRoadPath = cityInfo.alternateWaypoints;
 
-  const progress = tracking?.driverPosition?.progress ?? 32;
-  const currentSpeed = tracking?.speedKmh ?? 28;
-  const remainingDist = tracking?.distanceRemainingKm ?? 2.8;
-  const eta = tracking?.etaMinutes ?? 18;
-  const riskScore = tracking?.riskScore ?? prediction?.riskScore ?? 18;
-  const deliveryHealth = tracking?.deliveryHealth ?? prediction?.deliveryHealthScore ?? 88;
+  // Derive active route data
+  const activeRoute = useMemo<RouteOption>(() => {
+    return {
+      id: 'ROUTE_PRIMARY',
+      name: `${cityInfo.name} Primary Express Corridor`,
+      distanceKm: 3.6,
+      estimatedMinutes: 24,
+      trafficSummary: 'Moderate Arterial Flow',
+      weatherImpact: 'Normal Traction',
+      isRecommended: true,
+      riskLevel: 'LOW',
+      score: 96,
+      pathPoints: [{ x: 0, y: 0 }, { x: 100, y: 100 }],
+      highlightReason: cityInfo.primaryRoads,
+      geoCoordinates: primaryRoadPath
+    };
+  }, [cityInfo, primaryRoadPath]);
 
-  // Calculate Courier Latitude/Longitude & Bearing Angle along route
+  const progress = tracking?.driverPosition?.progress ?? 38;
+  const currentSpeed = tracking?.speedKmh ?? 29;
+  const remainingDist = Math.max(0.2, (3.6 * (1 - progress / 100))).toFixed(1);
+  const eta = tracking?.etaMinutes ?? 24;
+
+  // Calculate Courier Position along real road waypoints
   const currentCourierGeo = useMemo(() => {
-    const coords = activeRoute?.geoCoordinates || [
-      RESTAURANT_COORD,
-      [17.4504, 78.3808],
-      [17.4410, 78.3650],
-      [17.4360, 78.3540],
-      CUSTOMER_COORD
-    ];
+    const coords = primaryRoadPath;
+    if (coords.length < 2) return { lat: centerCoord[0], lng: centerCoord[1], bearing: 0 };
 
-    if (!coords || coords.length === 0) {
-      return { lat: HYDERABAD_CENTER[0], lng: HYDERABAD_CENTER[1], bearing: 0 };
-    }
+    const fraction = Math.min(Math.max(progress / 100, 0), 1);
+    const totalSegments = coords.length - 1;
+    const segmentIndex = Math.min(Math.floor(fraction * totalSegments), totalSegments - 1);
+    const segmentFraction = (fraction * totalSegments) - segmentIndex;
 
-    if (coords.length === 1) {
-      return { lat: coords[0][0], lng: coords[0][1], bearing: 0 };
-    }
+    const p1 = coords[segmentIndex];
+    const p2 = coords[segmentIndex + 1];
 
-    // Compute segment lengths
-    const segmentLengths: number[] = [];
-    let totalLength = 0;
-    for (let i = 0; i < coords.length - 1; i++) {
-      const p1 = coords[i];
-      const p2 = coords[i + 1];
-      const d = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
-      segmentLengths.push(d);
-      totalLength += d;
-    }
+    const lat = p1[0] + (p2[0] - p1[0]) * segmentFraction;
+    const lng = p1[1] + (p2[1] - p1[1]) * segmentFraction;
 
-    const targetDist = (progress / 100) * totalLength;
-    let accumulated = 0;
+    const dLat = p2[0] - p1[0];
+    const dLng = p2[1] - p1[1];
+    const bearing = (Math.atan2(dLng, dLat) * 180) / Math.PI;
 
-    for (let i = 0; i < segmentLengths.length; i++) {
-      const segLen = segmentLengths[i];
-      if (accumulated + segLen >= targetDist || i === segmentLengths.length - 1) {
-        const segProgress = segLen > 0 ? (targetDist - accumulated) / segLen : 0;
-        const clampedProg = Math.max(0, Math.min(1, segProgress));
-        const p1 = coords[i];
-        const p2 = coords[i + 1];
-        const lat = p1[0] + (p2[0] - p1[0]) * clampedProg;
-        const lng = p1[1] + (p2[1] - p1[1]) * clampedProg;
+    return { lat, lng, bearing };
+  }, [primaryRoadPath, progress, centerCoord]);
 
-        // Calculate heading in degrees
-        const dLat = p2[0] - p1[0];
-        const dLng = p2[1] - p1[1];
-        let angleDeg = (Math.atan2(dLng, dLat) * 180) / Math.PI;
-        if (angleDeg < 0) angleDeg += 360;
-
-        return { lat, lng, bearing: Math.round(angleDeg) };
-      }
-      accumulated += segLen;
-    }
-
-    const last = coords[coords.length - 1];
-    return { lat: last[0], lng: last[1], bearing: 0 };
-  }, [activeRoute, progress]);
-
-  // Initialize Leaflet Map safely
+  // Leaflet Map Lifecycle
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -188,252 +126,191 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
       mapInstanceRef.current = null;
     }
 
-    // Reset container ID to prevent "Map container is already initialized"
-    if ((mapContainerRef.current as any)._leaflet_id) {
-      (mapContainerRef.current as any)._leaflet_id = null;
-    }
-
     try {
       const map = L.map(mapContainerRef.current, {
-        center: HYDERABAD_CENTER,
-        zoom: 14,
+        center: centerCoord,
+        zoom: cityInfo.zoom || 14,
         zoomControl: false,
         attributionControl: false,
         maxZoom: 18,
-        minZoom: 12
+        minZoom: 11
       });
 
-      // Clean, high-resolution CartoDB Voyager Tile Layer
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      // Standard OSM Tile Layer with CartoDB fallback for crisp, clear roads & streets
+      const tileUrl = mapTileTheme === 'osm'
+        ? 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+        : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+
+      const tileSubdomains = mapTileTheme === 'osm' ? ['a', 'b', 'c'] : ['a', 'b', 'c', 'd'];
+
+      L.tileLayer(tileUrl, {
         maxZoom: 19,
-        subdomains: 'abcd'
+        subdomains: tileSubdomains,
+        attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
 
-      // Custom Zoom Controls
       L.control.zoom({ position: 'bottomright' }).addTo(map);
-
       mapInstanceRef.current = map;
 
-      // Pan / Drag listener to disable autoFollow if user manually explores
+      // Invalidate size on container resize and initial frame
+      const timer1 = setTimeout(() => map.invalidateSize(), 100);
+      const timer2 = setTimeout(() => map.invalidateSize(), 400);
+
       map.on('dragstart', () => {
         setAutoFollow(false);
       });
-    } catch (e) {
-      console.warn('Leaflet map initialization notice:', e);
-    }
 
-    return () => {
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.remove();
+          mapInstanceRef.current = null;
+        }
+      };
+    } catch (err) {
+      console.warn('Map initialization:', err);
+    }
+  }, [selectedCity, mapTileTheme]);
+
+  // ResizeObserver to handle layout shifts dynamically
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+    const ro = new ResizeObserver(() => {
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
+        mapInstanceRef.current.invalidateSize();
       }
-    };
+    });
+    ro.observe(mapContainerRef.current);
+    return () => ro.disconnect();
   }, []);
 
-  // Update Markers (Restaurant, Customer, Landmarks, Incidents)
+  // Update Markers (Restaurant & Customer)
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    // 1. Restaurant Marker (Spice Route Kitchen, Madhapur)
-    if (!restaurantMarkerRef.current) {
-      const restIcon = L.divIcon({
-        className: 'custom-rest-marker',
-        html: `
-          <div class="relative flex flex-col items-center">
-            <div class="flex h-9 w-9 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-lg border-2 border-white transform hover:scale-110 transition-transform">
-              <span style="font-size: 16px;">🍽</span>
-            </div>
-            <div class="mt-1 whitespace-nowrap rounded-md bg-slate-900/90 px-2 py-0.5 text-[10px] font-black text-white shadow-md border border-slate-700">
-              Spice Route Kitchen
-            </div>
+    // 1. Restaurant Marker
+    if (restaurantMarkerRef.current) restaurantMarkerRef.current.remove();
+    const restIcon = L.divIcon({
+      className: 'custom-rest-marker',
+      html: `
+        <div class="relative flex flex-col items-center cursor-pointer group">
+          <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-500 text-white shadow-xl border-2 border-white transform group-hover:scale-110 transition-transform">
+            <span style="font-size: 20px;">🍽️</span>
           </div>
-        `,
-        iconSize: [120, 50],
-        iconAnchor: [60, 20]
-      });
-
-      const marker = L.marker(RESTAURANT_COORD, { icon: restIcon })
-        .addTo(map)
-        .bindPopup(`
-          <div class="p-1 space-y-1">
-            <h4 class="font-bold text-xs text-slate-900">Spice Route Kitchen (Origin)</h4>
-            <p class="text-[11px] text-slate-600">Madhapur Main Road, HITEC City</p>
-            <span class="inline-block rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
-              Kitchen Status: ${conditions.storeStatus}
-            </span>
+          <div class="mt-1 whitespace-nowrap rounded-lg bg-slate-900 px-2 py-0.5 text-[10px] font-black text-white shadow-md border border-slate-700">
+            ${cityInfo.restaurantName}
           </div>
-        `);
-      restaurantMarkerRef.current = marker;
-    }
-
-    // 2. Customer Marker (Gachibowli Drop)
-    if (!customerMarkerRef.current) {
-      const custIcon = L.divIcon({
-        className: 'custom-cust-marker',
-        html: `
-          <div class="relative flex flex-col items-center">
-            <div class="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-lg border-2 border-white transform hover:scale-110 transition-transform">
-              <span style="font-size: 16px;">🏠</span>
-            </div>
-            <div class="mt-1 whitespace-nowrap rounded-md bg-emerald-950 px-2 py-0.5 text-[10px] font-black text-white shadow-md border border-emerald-800">
-              Your Drop Location
-            </div>
-          </div>
-        `,
-        iconSize: [120, 50],
-        iconAnchor: [60, 20]
-      });
-
-      const marker = L.marker(CUSTOMER_COORD, { icon: custIcon })
-        .addTo(map)
-        .bindPopup(`
-          <div class="p-1 space-y-1">
-            <h4 class="font-bold text-xs text-slate-900">Your Location (Destination)</h4>
-            <p class="text-[11px] text-slate-600">Financial District, Gachibowli, Hyderabad</p>
-            <span class="inline-block rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
-              Ready for Handover
-            </span>
-          </div>
-        `);
-      customerMarkerRef.current = marker;
-    }
-
-    // 3. Landmarks
-    landmarkMarkersRef.current.forEach(m => m.remove());
-    landmarkMarkersRef.current = [];
-
-    LANDMARKS.forEach(lm => {
-      const icon = L.divIcon({
-        className: 'custom-landmark-marker',
-        html: `
-          <div class="flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-[9px] font-bold text-slate-700 shadow-xs border border-slate-200/90 whitespace-nowrap">
-            <span class="h-1.5 w-1.5 rounded-full bg-cyan-600"></span>
-            <span>${lm.name}</span>
-          </div>
-        `,
-        iconSize: [100, 20],
-        iconAnchor: [50, 10]
-      });
-
-      const mark = L.marker(lm.coords as [number, number], { icon }).addTo(map);
-      landmarkMarkersRef.current.push(mark);
+        </div>
+      `,
+      iconSize: [160, 60],
+      iconAnchor: [80, 28]
     });
 
-    // 4. Traffic Incident Blockage Marker
-    incidentMarkersRef.current.forEach(m => m.remove());
-    incidentMarkersRef.current = [];
-
-    if (conditions.trafficLevel === 'SEVERE' || conditions.trafficLevel === 'HIGH' || conditions.roadCondition === 'BLOCKED') {
-      const incidentIcon = L.divIcon({
-        className: 'custom-incident-marker',
-        html: `
-          <div class="relative flex flex-col items-center cursor-pointer animate-bounce">
-            <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-600 text-white shadow-xl border-2 border-white">
-              <span style="font-size: 14px;">🚧</span>
-            </div>
-            <div class="mt-0.5 whitespace-nowrap rounded bg-rose-900 px-1.5 py-0.5 text-[9px] font-black text-rose-100 shadow-md">
-              Kondapur Chokepoint (+6m)
-            </div>
+    const rMarker = L.marker(restCoord, { icon: restIcon })
+      .addTo(map)
+      .bindPopup(`
+        <div class="p-2 space-y-1.5 min-w-[200px]">
+          <div class="flex items-center justify-between">
+            <h4 class="font-black text-xs text-slate-900">${cityInfo.restaurantName}</h4>
+            <span class="text-[10px] font-bold text-amber-600">⭐ ${cityInfo.restaurantRating}</span>
           </div>
-        `,
-        iconSize: [130, 45],
-        iconAnchor: [65, 20]
-      });
+          <p class="text-[11px] text-slate-600">${cityInfo.restaurantCuisine}</p>
+          <span class="inline-block rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
+            Kitchen Preparing • Ready in ~${conditions.restaurantPrepTime || 8} min
+          </span>
+        </div>
+      `);
+    restaurantMarkerRef.current = rMarker;
 
-      const incMarker = L.marker([17.4640, 78.3680], { icon: incidentIcon })
-        .addTo(map)
-        .bindPopup(`
-          <div class="p-1 space-y-1">
-            <div class="flex items-center gap-1 text-rose-700 font-bold text-xs">
-              <span>⚠ Severe Congestion Alert</span>
-            </div>
-            <p class="text-[11px] text-slate-600">Kondapur Junction bottleneck causing ~6m transit friction.</p>
-            <p class="text-[10px] text-cyan-700 font-semibold">AI recommendation: Route C (Knowledge City Green Corridor) bypass.</p>
+    // 2. Customer Home Marker
+    if (customerMarkerRef.current) customerMarkerRef.current.remove();
+    const custIcon = L.divIcon({
+      className: 'custom-cust-marker',
+      html: `
+        <div class="relative flex flex-col items-center cursor-pointer group">
+          <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-xl border-2 border-white transform group-hover:scale-110 transition-transform">
+            <span style="font-size: 20px;">🏠</span>
           </div>
-        `);
-      incidentMarkersRef.current.push(incMarker);
-    }
-  }, [conditions.trafficLevel, conditions.roadCondition, conditions.storeStatus]);
+          <div class="mt-1 whitespace-nowrap rounded-lg bg-emerald-950 px-2.5 py-0.5 text-[10px] font-black text-white shadow-md border border-emerald-800">
+            Your Location (Home)
+          </div>
+        </div>
+      `,
+      iconSize: [160, 60],
+      iconAnchor: [80, 28]
+    });
+
+    const cMarker = L.marker(custCoord, { icon: custIcon })
+      .addTo(map)
+      .bindPopup(`
+        <div class="p-2 space-y-1 min-w-[200px]">
+          <h4 class="font-black text-xs text-slate-900">Your Delivery Address</h4>
+          <p class="text-[11px] text-slate-600">${cityInfo.customerAddress}</p>
+          <span class="inline-block rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
+            🟢 Ready for Courier Handover
+          </span>
+        </div>
+      `);
+    customerMarkerRef.current = cMarker;
+
+  }, [restCoord, custCoord, cityInfo, conditions.restaurantPrepTime]);
 
   // Update Route Polylines
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || !prediction?.availableRoutes) return;
+    if (!map) return;
 
-    // Clear previous polylines
     if (activeRoutePolylineRef.current) activeRoutePolylineRef.current.remove();
     altRoutePolylinesRef.current.forEach(p => p.remove());
     altRoutePolylinesRef.current = [];
-    trafficSegmentPolylinesRef.current.forEach(p => p.remove());
-    trafficSegmentPolylinesRef.current = [];
+    trafficPolylinesRef.current.forEach(p => p.remove());
+    trafficPolylinesRef.current = [];
 
-    const availableRoutes = prediction.availableRoutes;
-
-    // Draw alternative routes (faded dashed paths)
-    availableRoutes.forEach(route => {
-      if (route.id === activeRoute.id) return;
-      if (!route.geoCoordinates) return;
-
-      const altPoly = L.polyline(route.geoCoordinates, {
-        color: '#94a3b8',
-        weight: 4,
-        dashArray: '6, 8',
-        opacity: 0.6,
+    // Optional comparison routes (shown ONLY when user clicks Compare Routes)
+    if (showRouteComparison) {
+      const altPoly = L.polyline(alternateRoadPath, {
+        color: '#64748b',
+        weight: 5,
+        dashArray: '8, 8',
+        opacity: 0.7,
         lineCap: 'round',
         lineJoin: 'round'
-      }).addTo(map);
-
-      altPoly.bindTooltip(`
-        <div class="text-xs font-bold text-slate-800">
-          ${route.name} (${route.estimatedMinutes}m • ${route.distanceKm}km)
-        </div>
-      `, { sticky: true });
-
+      }).addTo(map).bindTooltip('Alternate Route (27 min • Heavy Traffic)', { permanent: false });
       altRoutePolylinesRef.current.push(altPoly);
-    });
-
-    // Draw active primary route
-    if (activeRoute.geoCoordinates) {
-      const activePoly = L.polyline(activeRoute.geoCoordinates, {
-        color: '#0284c7',
-        weight: 6,
-        opacity: 0.9,
-        lineCap: 'round',
-        lineJoin: 'round'
-      }).addTo(map);
-
-      activeRoutePolylineRef.current = activePoly;
     }
 
-    // Draw traffic segment colors if enabled
-    if (showTraffic && activeRoute.trafficSegments) {
-      activeRoute.trafficSegments.forEach(seg => {
-        let segColor = '#10b981'; // Green (Clear)
-        if (seg.level === 'MEDIUM') segColor = '#eab308'; // Yellow
-        if (seg.level === 'HIGH') segColor = '#f97316'; // Orange
-        if (seg.level === 'SEVERE') segColor = '#ef4444'; // Red
+    // Active Primary Route Polyline (Glow border + bright blue core)
+    const bgBorderPoly = L.polyline(primaryRoadPath, {
+      color: '#0369a1',
+      weight: 8,
+      opacity: 0.5,
+      lineCap: 'round',
+      lineJoin: 'round'
+    }).addTo(map);
 
-        const segPoly = L.polyline(seg.coords, {
-          color: segColor,
-          weight: 4.5,
-          opacity: 0.95,
-          lineCap: 'round'
-        }).addTo(map);
+    const activePoly = L.polyline(primaryRoadPath, {
+      color: '#0284c7',
+      weight: 5,
+      opacity: 0.95,
+      lineCap: 'round',
+      lineJoin: 'round'
+    }).addTo(map);
 
-        segPoly.bindTooltip(`
-          <div class="text-[11px] font-bold">
-            ${seg.name} — <span style="color:${segColor}">${seg.level} Traffic</span>
-            ${seg.delayMin ? ` (+${seg.delayMin}m)` : ''}
-          </div>
-        `, { sticky: true });
+    activeRoutePolylineRef.current = activePoly;
+    altRoutePolylinesRef.current.push(bgBorderPoly);
 
-        trafficSegmentPolylinesRef.current.push(segPoly);
-      });
+    // Live Traffic Visualizer along segments
+    if (showTraffic && primaryRoadPath.length >= 3) {
+      const seg1 = L.polyline([primaryRoadPath[0], primaryRoadPath[1]], { color: '#10b981', weight: 4, opacity: 0.9 }).addTo(map);
+      const seg2 = L.polyline([primaryRoadPath[1], primaryRoadPath[2]], { color: '#f59e0b', weight: 4, opacity: 0.9 }).addTo(map);
+      const seg3 = L.polyline([primaryRoadPath[2], primaryRoadPath[3] || primaryRoadPath[2]], { color: '#10b981', weight: 4, opacity: 0.9 }).addTo(map);
+      trafficPolylinesRef.current.push(seg1, seg2, seg3);
     }
-  }, [activeRoute, prediction?.availableRoutes, showTraffic]);
+  }, [primaryRoadPath, alternateRoadPath, showRouteComparison, showTraffic]);
 
-  // Update Dynamic Courier Marker Position & Heading
+  // Update Courier Marker
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -441,19 +318,19 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
     const { lat, lng, bearing } = currentCourierGeo;
 
     const courierHtml = `
-      <div class="relative flex flex-col items-center">
+      <div class="relative flex flex-col items-center cursor-pointer" onclick="window.__openRiderCard && window.__openRiderCard()">
         <!-- Radar Pulse Ring -->
-        <div class="absolute -top-1 -left-1 h-11 w-11 rounded-full bg-cyan-500/30 courier-pulse-ring pointer-events-none"></div>
+        <div class="absolute -top-1.5 -left-1.5 h-14 w-14 rounded-full bg-cyan-500/25 animate-ping pointer-events-none"></div>
 
-        <!-- Vehicle Center Pin with Dynamic Heading -->
-        <div class="relative z-10 flex h-9 w-9 items-center justify-center rounded-2xl bg-cyan-600 text-white shadow-xl border-2 border-white transition-transform duration-300" style="transform: rotate(${bearing}deg);">
-          <span style="font-size: 16px;">🛵</span>
+        <!-- Vehicle Center Marker with Direction -->
+        <div class="relative z-10 flex h-11 w-11 items-center justify-center rounded-2xl bg-cyan-600 text-white shadow-2xl border-2 border-white transition-transform duration-300" style="transform: rotate(${bearing}deg);">
+          <span style="font-size: 20px;">🛵</span>
         </div>
 
         <!-- Live Status Pill Below -->
-        <div class="mt-1 whitespace-nowrap rounded-md bg-slate-950/95 px-2 py-0.5 text-[9px] font-black text-cyan-300 shadow-lg border border-cyan-500/40 flex items-center gap-1">
+        <div class="mt-1 whitespace-nowrap rounded-lg bg-slate-950/95 px-2.5 py-0.5 text-[9px] font-black text-cyan-300 shadow-xl border border-cyan-500/40 flex items-center gap-1">
           <span class="h-1.5 w-1.5 rounded-full bg-cyan-400 animate-ping"></span>
-          <span>OUT FOR DELIVERY • ${currentSpeed} km/h</span>
+          <span>Rahul Kumar • ${currentSpeed} km/h</span>
         </div>
       </div>
     `;
@@ -461,32 +338,23 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
     const courierIcon = L.divIcon({
       className: 'custom-courier-marker',
       html: courierHtml,
-      iconSize: [140, 56],
-      iconAnchor: [70, 20]
+      iconSize: [160, 64],
+      iconAnchor: [80, 30]
     });
 
     if (!courierMarkerRef.current) {
       const marker = L.marker([lat, lng], { icon: courierIcon }).addTo(map);
-      marker.bindPopup(`
-        <div class="p-1 space-y-1">
-          <h4 class="font-bold text-xs text-slate-900">Delivery Partner (Live)</h4>
-          <p class="text-[11px] text-slate-600">Speed: ${currentSpeed} km/h • ${remainingDist} km remaining</p>
-          <div class="flex items-center gap-1 text-[10px] text-cyan-700 font-bold">
-            <span>ETA: ~${eta} mins</span> • <span>${progress.toFixed(0)}% Progress</span>
-          </div>
-        </div>
-      `);
+      marker.on('click', () => setIsRiderCardOpen(true));
       courierMarkerRef.current = marker;
     } else {
       courierMarkerRef.current.setLatLng([lat, lng]);
       courierMarkerRef.current.setIcon(courierIcon);
     }
 
-    // Smooth auto-follow if enabled
     if (autoFollow) {
-      map.panTo([lat, lng], { animate: true, duration: 0.8 });
+      map.panTo([lat, lng], { animate: true, duration: 0.6 });
     }
-  }, [currentCourierGeo, currentSpeed, remainingDist, eta, progress, autoFollow]);
+  }, [currentCourierGeo, currentSpeed, autoFollow]);
 
   // Recenter Courier
   const handleRecenterCourier = useCallback(() => {
@@ -499,294 +367,306 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
   // Fit Entire Route Bounds
   const handleFitRouteBounds = useCallback(() => {
     const map = mapInstanceRef.current;
-    if (!map || !activeRoute?.geoCoordinates || activeRoute.geoCoordinates.length === 0) return;
+    if (!map || !primaryRoadPath || primaryRoadPath.length === 0) return;
     try {
-      const bounds = L.latLngBounds(activeRoute.geoCoordinates);
+      const bounds = L.latLngBounds(primaryRoadPath);
       map.fitBounds(bounds, { padding: [60, 60], animate: true });
       setAutoFollow(false);
     } catch (e) {
       console.warn('Error fitting route bounds:', e);
     }
-  }, [activeRoute]);
-
-  // Event Log Ticker Data
-  const recentEvents = useMemo(() => [
-    { time: '4:21 PM', text: '🛵 Partner picked up order at Spice Route Kitchen', type: 'info' },
-    { time: '4:24 PM', text: `🚦 Traffic index: ${conditions?.trafficLevel || 'NORMAL'} across HITEC corridor`, type: 'traffic' },
-    { time: '4:25 PM', text: `🌧 Atmospheric node: ${(conditions?.weatherCondition || 'CLEAR').replace(/_/g, ' ')}`, type: 'weather' },
-    { time: '4:26 PM', text: `🧠 AI optimized path: ${activeRoute?.name?.split('—')?.[0] || activeRoute?.name || 'Optimal Corridor'}`, type: 'ai' },
-    { time: '4:28 PM', text: `🎯 Arrival projected at ~${eta} mins (${(progress || 0).toFixed(0)}% completed)`, type: 'eta' }
-  ], [conditions?.trafficLevel, conditions?.weatherCondition, activeRoute?.name, eta, progress]);
+  }, [primaryRoadPath]);
 
   return (
-    <div className={`relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xs ${className}`}>
+    <div className={`overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xs ${className}`}>
       
-      {/* Top Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-white px-5 py-3.5 sm:px-6">
+      {/* Top Map Control Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/90 px-4 py-3 sm:px-6">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-600 text-white shadow-xs">
-            <Navigation className="h-4 w-4" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-700 border border-cyan-100">
+            <Compass className="h-4.5 w-4.5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-sm sm:text-base font-black text-slate-900 tracking-tight">
-                AI Live Delivery Navigation
-              </h3>
-              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-black uppercase text-amber-800 border border-amber-200">
-                DEMO SIMULATION • HYDERABAD
+              <span className="text-sm font-black tracking-tight text-slate-900">
+                Live Delivery Route &amp; Real-World Map
+              </span>
+              <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
+                📍 {cityInfo.name}
               </span>
             </div>
             <p className="text-[11px] text-slate-500">
-              Madhapur → HITEC City → Kondapur → Gachibowli Financial District
+              {cityInfo.primaryRoads} • {remainingDist} km remaining
             </p>
           </div>
         </div>
 
-        {/* Quick Map Controls Header Action */}
+        {/* Action Controls */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setAutoFollow(!autoFollow)}
-            className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-all ${
-              autoFollow
-                ? 'border-cyan-400 bg-cyan-50 text-cyan-800 shadow-xs'
-                : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100'
-            }`}
-            title="Automatically center on moving courier"
-          >
-            <Crosshair className={`h-3.5 w-3.5 ${autoFollow ? 'text-cyan-600 animate-spin' : ''}`} />
-            <span>Follow Courier</span>
-          </button>
-
-          <button
-            onClick={handleFitRouteBounds}
-            className="flex items-center gap-1 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors"
-            title="Fit complete route in view"
-          >
-            <Maximize2 className="h-3.5 w-3.5 text-slate-600" />
-            <span className="hidden sm:inline">Fit Route</span>
-          </button>
-
+          
+          {/* Traffic Toggle */}
           <button
             onClick={() => setShowTraffic(!showTraffic)}
-            className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition-all ${
+            className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all border ${
               showTraffic
                 ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-                : 'border-slate-200 bg-slate-50 text-slate-500'
+                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
             }`}
+            title="Toggle Live Route Traffic Flow"
           >
-            <Car className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Traffic</span>
+            <Activity className="h-3.5 w-3.5" />
+            <span>Traffic</span>
           </button>
 
+          {/* Compare Routes Button */}
           <button
-            onClick={() => setShowWeatherOverlay(!showWeatherOverlay)}
-            className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs font-bold transition-all ${
-              showWeatherOverlay
-                ? 'border-blue-300 bg-blue-50 text-blue-800'
-                : 'border-slate-200 bg-slate-50 text-slate-500'
+            onClick={() => setShowRouteComparison(!showRouteComparison)}
+            className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all border ${
+              showRouteComparison
+                ? 'border-cyan-400 bg-cyan-50 text-cyan-800'
+                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
             }`}
           >
-            <CloudRain className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Weather</span>
+            <Layers className="h-3.5 w-3.5" />
+            <span>{showRouteComparison ? 'Hide Alternates' : 'Compare Routes'}</span>
           </button>
 
+          {/* Follow Rider Button */}
           <button
-            onClick={() => setShowLegend(!showLegend)}
-            className="rounded-xl border border-slate-200 bg-slate-50 p-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
-            title="Toggle Map Legend"
+            onClick={handleRecenterCourier}
+            className={`flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold transition-all border ${
+              autoFollow
+                ? 'border-cyan-500 bg-cyan-600 text-white shadow-xs'
+                : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+            }`}
           >
-            <Layers className="h-4 w-4" />
+            <Crosshair className="h-3.5 w-3.5" />
+            <span>Follow Rider</span>
+          </button>
+
+          {/* Fit Route Button */}
+          <button
+            onClick={handleFitRouteBounds}
+            className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-xs"
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Fit Route</span>
           </button>
         </div>
       </div>
 
-      {/* Main Map Container Frame */}
+      {/* Main Map Container Canvas */}
       <div className={`relative w-full ${heightClass}`}>
         
-        {/* Leaflet DOM Anchor */}
-        <div ref={mapContainerRef} className="absolute inset-0 h-full w-full" />
+        {/* Leaflet DOM container */}
+        <div ref={mapContainerRef} className="absolute inset-0 h-full w-full bg-slate-100" />
 
-        {/* Atmospheric Weather Overlay (Subtle CSS Particles) */}
-        {showWeatherOverlay && (
-          <>
-            {(conditions.weatherCondition === 'RAIN' || conditions.weatherCondition === 'HEAVY_RAIN') && (
-              <div className="absolute inset-0 weather-rain-layer pointer-events-none z-10 opacity-70" />
-            )}
-            {conditions.weatherCondition === 'STORM' && (
-              <div className="absolute inset-0 weather-storm-layer pointer-events-none z-10 opacity-80 bg-slate-900/10" />
-            )}
-          </>
-        )}
-
-        {/* Top-Left Floating Live ETA Card */}
-        <div className="absolute top-4 left-4 z-20 w-72 sm:w-80 rounded-2xl border border-slate-200/90 bg-white/95 p-4 shadow-xl backdrop-blur-md transition-all">
+        {/* Top-Left Floating Live ETA Summary Card */}
+        <div className="absolute top-4 left-4 z-20 w-64 sm:w-72 rounded-2xl border border-slate-200/90 bg-white/95 p-4 shadow-xl backdrop-blur-md">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <span className="text-[10px] font-black uppercase tracking-wider text-cyan-900 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-cyan-600" />
               AI Predicted Arrival
             </span>
             <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
-              92% Confident
+              92% High Confidence
             </span>
           </div>
 
           <div className="pt-2 flex items-baseline justify-between">
             <div>
               <div className="text-3xl font-black text-slate-900 tracking-tight">
-                {eta} <span className="text-base font-bold text-cyan-700">MIN</span>
+                {eta} <span className="text-sm font-bold text-cyan-700">MIN</span>
               </div>
               <p className="text-[11px] font-medium text-slate-500 mt-0.5">
-                Arriving around ~{new Date(Date.now() + eta * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                Expected ~{new Date(Date.now() + eta * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
 
             <div className="text-right">
               <div className="text-xs font-black text-slate-900">{remainingDist} km left</div>
-              <div className="text-[10px] font-mono text-slate-500">{currentSpeed} km/h cruising</div>
-            </div>
-          </div>
-
-          {/* Environmental Health Checklist */}
-          <div className="mt-3 grid grid-cols-3 gap-1.5 pt-2 border-t border-slate-100 text-[10px]">
-            <div className="rounded-lg bg-slate-50 p-1.5 text-center border border-slate-100">
-              <span className="text-slate-400 block font-bold">Traffic</span>
-              <span className={`font-black ${conditions.trafficLevel === 'SEVERE' ? 'text-rose-600' : (conditions.trafficLevel === 'HIGH' ? 'text-amber-600' : 'text-emerald-600')}`}>
-                {conditions.trafficLevel}
-              </span>
-            </div>
-
-            <div className="rounded-lg bg-slate-50 p-1.5 text-center border border-slate-100">
-              <span className="text-slate-400 block font-bold">Weather</span>
-              <span className="font-black text-slate-700">
-                {(conditions?.weatherCondition || 'CLEAR').replace(/_/g, ' ')}
-              </span>
-            </div>
-
-            <div className="rounded-lg bg-slate-50 p-1.5 text-center border border-slate-100">
-              <span className="text-slate-400 block font-bold">Health</span>
-              <span className="font-black text-emerald-600">
-                {deliveryHealth}/100
-              </span>
+              <div className="text-[10px] font-mono text-emerald-700 font-bold">{currentSpeed} km/h cruising</div>
             </div>
           </div>
         </div>
 
-        {/* Top-Right Floating Route Switcher (Mini Route Battle) */}
-        <div className="absolute top-4 right-4 z-20 hidden md:flex flex-col gap-2">
-          <div className="rounded-2xl border border-slate-200/90 bg-white/95 p-3 shadow-xl backdrop-blur-md space-y-2 w-64">
-            <div className="flex items-center justify-between text-[11px] font-bold text-slate-800">
-              <span className="flex items-center gap-1">
-                <Compass className="h-3.5 w-3.5 text-cyan-600" />
-                <span>Multi-Corridor Routes</span>
-              </span>
-              <span className="text-[10px] text-cyan-700 font-mono">Live Sync</span>
+        {/* Delivery Partner Floating Card (Clickable on Map) */}
+        <div className="absolute bottom-4 left-4 z-20 w-72 sm:w-80 rounded-2xl border border-slate-200/90 bg-white/95 p-3.5 shadow-xl backdrop-blur-md">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="relative">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-600 text-white font-black text-sm shadow-md">
+                  RK
+                </div>
+                <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white text-[9px] font-bold border-2 border-white">
+                  ✓
+                </span>
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-black text-slate-900">Rahul Kumar</span>
+                  <span className="flex items-center gap-0.5 text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
+                    <Star className="h-2.5 w-2.5 fill-amber-500 text-amber-500" />
+                    4.8
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
+                  <Bike className="h-3 w-3 text-cyan-600" />
+                  <span>Ather 450X EV • 🟢 On the way</span>
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsRiderCardOpen(true)}
+              className="rounded-xl bg-slate-100 hover:bg-cyan-50 hover:text-cyan-800 text-slate-700 px-3 py-1.5 text-xs font-bold border border-slate-200 transition-colors"
+            >
+              Partner Card
+            </button>
+          </div>
+        </div>
+
+        {/* Optional Route Comparison Overlay */}
+        {showRouteComparison && (
+          <div className="absolute top-4 right-4 z-20 w-64 rounded-2xl border border-slate-200/90 bg-white/95 p-3.5 shadow-xl backdrop-blur-md space-y-2">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
+              <span className="text-xs font-bold text-slate-900">Corridor Options</span>
+              <button
+                onClick={() => setShowRouteComparison(false)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
 
             <div className="space-y-1.5">
-              {(prediction?.availableRoutes || []).map(route => {
-                const isSelected = activeRoute?.id === route.id;
-                return (
-                  <button
-                    key={route.id}
-                    onClick={() => selectRoute(route.id)}
-                    className={`w-full text-left rounded-xl p-2 text-xs transition-all flex items-center justify-between border ${
-                      isSelected
-                        ? 'border-cyan-500 bg-cyan-50/80 font-bold text-cyan-950 shadow-xs'
-                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
-                    }`}
-                  >
-                    <div>
-                      <div className="text-[11px] truncate">{route.name?.split('—')?.[0] || route.name}</div>
-                      <div className="text-[10px] text-slate-500">{route.distanceKm} km • {route.estimatedMinutes}m</div>
-                    </div>
-                    {route.isRecommended && (
-                      <span className="rounded bg-cyan-600 px-1.5 py-0.5 text-[9px] font-black text-white">
-                        AI BEST
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom-Left AI Event Ticker */}
-        {showEvents && (
-          <div className="absolute bottom-4 left-4 z-20 hidden sm:block max-w-sm rounded-2xl border border-slate-200/90 bg-white/95 p-3.5 shadow-xl backdrop-blur-md">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                <Activity className="h-3.5 w-3.5 text-cyan-600" />
-                Live AI Event Timeline
-              </span>
               <button
-                onClick={() => setShowEvents(false)}
-                className="text-[10px] text-slate-400 hover:text-slate-600 font-bold"
+                className="w-full text-left rounded-xl p-2.5 text-xs transition-all border border-cyan-500 bg-cyan-50/80 font-bold text-cyan-950 shadow-xs"
               >
-                ✕
-              </button>
-            </div>
-            <div className="mt-2 space-y-1.5 max-h-28 overflow-y-auto pr-1 text-[11px]">
-              {recentEvents.slice(0, 3).map((evt, idx) => (
-                <div key={idx} className="flex items-start gap-2 text-slate-600">
-                  <span className="font-mono text-[9px] font-bold text-slate-400 shrink-0">{evt.time}</span>
-                  <span className="line-clamp-1">{evt.text}</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold">Recommended Corridor</span>
+                  <span className="rounded bg-cyan-600 px-1.5 py-0.2 text-[9px] font-black text-white">
+                    BEST
+                  </span>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+                <div className="text-[10px] text-slate-600 mt-1">
+                  24 min • 3.6 km (Fast transit, clear flyover)
+                </div>
+              </button>
 
-        {/* Collapsible Map Legend (Bottom-Center / Bottom-Right) */}
-        {showLegend && (
-          <div className="absolute bottom-4 right-14 z-20 w-60 rounded-2xl border border-slate-200/90 bg-white/95 p-3 shadow-xl backdrop-blur-md space-y-2 text-xs">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-1 font-bold text-slate-800">
-              <span>Map Legend & Signals</span>
-              <button onClick={() => setShowLegend(false)} className="text-slate-400 hover:text-slate-700">✕</button>
-            </div>
-            <div className="space-y-1 text-[11px]">
-              <div className="font-bold text-slate-500 text-[10px] uppercase">Traffic Density</div>
-              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-emerald-500"></span> Clear / Normal</div>
-              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-amber-400"></span> Moderate Flow</div>
-              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-orange-500"></span> Heavy Congestion</div>
-              <div className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-rose-500"></span> Severe Blockage</div>
-            </div>
-            <div className="space-y-1 text-[11px] pt-1 border-t border-slate-100">
-              <div className="font-bold text-slate-500 text-[10px] uppercase">Entities</div>
-              <div className="flex items-center gap-1.5">🍽 Spice Route Kitchen</div>
-              <div className="flex items-center gap-1.5">🛵 Delivery Partner (Live)</div>
-              <div className="flex items-center gap-1.5">🏠 Customer Destination</div>
+              <button
+                className="w-full text-left rounded-xl p-2.5 text-xs transition-all border border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold">Alternate Side Roads</span>
+                  <span className="text-[9px] font-medium text-slate-400">
+                    +3 min
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-500 mt-1">
+                  27 min • 4.1 km (Local market congestion)
+                </div>
+              </button>
             </div>
           </div>
         )}
 
       </div>
 
-      {/* Bottom Status Progress Stepper */}
-      <div className="border-t border-slate-100 bg-slate-50/70 p-4 sm:px-6">
+      {/* Delivery Lifecycle Step Bar */}
+      <div className="border-t border-slate-100 bg-slate-50/80 p-4 sm:px-6">
         <div className="flex items-center justify-between text-xs font-bold text-slate-700 pb-2">
-          <span>Delivery Lifecycle Progress</span>
-          <span className="text-cyan-700 font-mono font-black">{progress.toFixed(0)}% Completed</span>
+          <span>Delivery Progress Status</span>
+          <span className="text-cyan-800 font-mono font-black">{progress.toFixed(0)}% Completed</span>
         </div>
         
-        <div className="grid grid-cols-5 gap-1 text-[10px] text-center font-bold">
-          <div className={`p-1.5 rounded-lg border ${progress >= 0 ? 'bg-cyan-50 border-cyan-300 text-cyan-900' : 'bg-white border-slate-200 text-slate-400'}`}>
+        <div className="grid grid-cols-5 gap-1.5 text-[10px] text-center font-bold">
+          <div className={`p-2 rounded-xl border ${progress >= 0 ? 'bg-cyan-50 border-cyan-300 text-cyan-950' : 'bg-white border-slate-200 text-slate-400'}`}>
             ✓ Confirmed
           </div>
-          <div className={`p-1.5 rounded-lg border ${progress >= 15 ? 'bg-cyan-50 border-cyan-300 text-cyan-900' : 'bg-white border-slate-200 text-slate-400'}`}>
+          <div className={`p-2 rounded-xl border ${progress >= 15 ? 'bg-cyan-50 border-cyan-300 text-cyan-950' : 'bg-white border-slate-200 text-slate-400'}`}>
             ✓ Preparing
           </div>
-          <div className={`p-1.5 rounded-lg border ${progress >= 35 ? 'bg-cyan-600 border-cyan-600 text-white shadow-xs' : 'bg-white border-slate-200 text-slate-400'}`}>
-            ● Out for Delivery
+          <div className={`p-2 rounded-xl border ${progress >= 35 ? 'bg-cyan-600 border-cyan-600 text-white shadow-xs' : 'bg-white border-slate-200 text-slate-400'}`}>
+            ● On the Way
           </div>
-          <div className={`p-1.5 rounded-lg border ${progress >= 85 ? 'bg-cyan-50 border-cyan-300 text-cyan-900' : 'bg-white border-slate-200 text-slate-400'}`}>
+          <div className={`p-2 rounded-xl border ${progress >= 85 ? 'bg-cyan-50 border-cyan-300 text-cyan-950' : 'bg-white border-slate-200 text-slate-400'}`}>
             ○ Arriving Soon
           </div>
-          <div className={`p-1.5 rounded-lg border ${progress >= 100 ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-400'}`}>
+          <div className={`p-2 rounded-xl border ${progress >= 100 ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white border-slate-200 text-slate-400'}`}>
             ○ Delivered
           </div>
         </div>
       </div>
+
+      {/* Full Delivery Partner Modal */}
+      {isRiderCardOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="relative w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl space-y-4">
+            
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                <Bike className="h-4 w-4 text-cyan-600" />
+                <span>Delivery Partner Card</span>
+              </div>
+              <button
+                onClick={() => setIsRiderCardOpen(false)}
+                className="rounded-full bg-slate-100 p-1 text-slate-500 hover:text-slate-900"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3.5 pt-1">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-cyan-600 text-white font-black text-xl shadow-md">
+                RK
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">Rahul Kumar</h3>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="flex items-center gap-1 text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                    <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
+                    4.8 (1,420+ deliveries)
+                  </span>
+                </div>
+                <span className="text-xs text-slate-500 block mt-1">
+                  Ather 450X EV • 🟢 Verified Partner
+                </span>
+              </div>
+            </div>
+
+            {/* Delivery Handover PIN */}
+            <div className="rounded-2xl bg-slate-50 border border-slate-200 p-3.5 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Delivery Handover PIN</span>
+                <span className="text-xs text-slate-600 font-medium">Share with rider at doorstep</span>
+              </div>
+              <span className="text-lg font-mono font-black text-cyan-800 bg-cyan-100/90 px-3 py-1 rounded-xl border border-cyan-300">
+                4829
+              </span>
+            </div>
+
+            {/* Actions: Call & Message */}
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <button
+                onClick={() => alert('Calling delivery partner (Masked number: +91 98480 XXXXX)...')}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 p-2.5 text-xs font-bold transition-colors"
+              >
+                <Phone className="h-3.5 w-3.5 text-cyan-700" />
+                <span>Call Partner</span>
+              </button>
+              <button
+                onClick={() => alert('Live chat with Rahul Kumar is open in the order message center.')}
+                className="flex items-center justify-center gap-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white p-2.5 text-xs font-bold transition-colors"
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                <span>Send Note</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

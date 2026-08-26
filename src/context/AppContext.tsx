@@ -14,8 +14,10 @@ import {
   OrderStatus,
   RouteOption,
   AppTab,
-  CartItem
+  CartItem,
+  SupportedCity
 } from '../types';
+import { SUPPORTED_CITIES } from '../data/cities';
 import { FoodItem } from '../data/foodCatalog';
 import { predictDelivery } from '../ml/deliveryML';
 import { FirebaseDbService, DEFAULT_ADMIN_SETTINGS } from '../services/firebaseDb';
@@ -30,6 +32,10 @@ interface AppContextType {
   conditions: DeliveryConditions;
   activeTab: AppTab;
   setActiveTab: (tab: AppTab) => void;
+  selectedCity: SupportedCity;
+  setSelectedCity: (city: SupportedCity) => void;
+  isLocationModalOpen: boolean;
+  setIsLocationModalOpen: (open: boolean) => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   selectedCategory: string;
@@ -204,8 +210,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [prediction, setPrediction] = useState<PredictionResult | null>(INITIAL_PREDICTION);
   const [tracking, setTracking] = useState<LiveTrackingState | null>(INITIAL_TRACKING);
   const [activeTab, setActiveTab] = useState<AppTab>('HOME');
+  const [selectedCity, setSelectedCityState] = useState<SupportedCity>('Vijayawada');
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+
+  const setSelectedCity = useCallback((city: SupportedCity) => {
+    setSelectedCityState(city);
+    const cityInfo = SUPPORTED_CITIES[city];
+    if (activeOrder) {
+      setActiveOrder(prev => prev ? {
+        ...prev,
+        customerName: `${user?.displayName || 'Dilip'} (${cityInfo.name})`
+      } : null);
+    }
+  }, [activeOrder, user?.displayName]);
 
   // Cart & Modals
   const [cart, setCart] = useState<CartItem[]>(INITIAL_CART);
@@ -961,6 +980,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         conditions,
         activeTab,
         setActiveTab,
+        selectedCity,
+        setSelectedCity,
+        isLocationModalOpen,
+        setIsLocationModalOpen,
         searchQuery,
         setSearchQuery,
         selectedCategory,

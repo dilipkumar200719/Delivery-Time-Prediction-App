@@ -2,6 +2,8 @@ import React, { useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/Navbar';
 import { CustomerHero } from './components/CustomerHero';
+import { FoodDiscoveryCarousels } from './components/FoodDiscoveryCarousels';
+import { AIDeliveryPredictionCard } from './components/AIDeliveryPredictionCard';
 import { FoodCatalog } from './components/FoodCatalog';
 import { RestaurantsView } from './components/RestaurantsView';
 import { MyOrdersView } from './components/MyOrdersView';
@@ -23,6 +25,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { AuthModal } from './components/AuthModal';
 import { DeliveryCompleteReport } from './components/DeliveryCompleteReport';
 import { CityDeliveryPulse } from './components/CityDeliveryPulse';
+import { LocationSelectorModal } from './components/LocationSelectorModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppTab } from './types';
 
@@ -210,6 +213,29 @@ const MainDashboard: React.FC = () => {
           <ErrorBoundary fallbackTitle="Home View Recovery">
             <div className="space-y-8 animate-in fade-in duration-300">
               <CustomerHero />
+              
+              {/* Standout AI Delivery Prediction Card (Live Intelligence) */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2">
+                    <BrainCircuit className="h-6 w-6 text-cyan-600" />
+                    <span>Active Order Delivery Prediction</span>
+                  </h2>
+                  <button
+                    onClick={() => setActiveTab('TWIN')}
+                    className="flex items-center gap-1 text-xs font-bold text-cyan-700 hover:text-cyan-800 bg-cyan-50 hover:bg-cyan-100 px-3 py-1.5 rounded-xl border border-cyan-200 transition-colors"
+                  >
+                    <span>Full Live Map Tracking</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <AIDeliveryPredictionCard />
+              </div>
+
+              {/* Food Discovery Carousels */}
+              <FoodDiscoveryCarousels />
+
+              {/* Comprehensive Full Menu & Kitchen Sync */}
               <FoodCatalog />
               
               {/* Digital Twin Corridor Live Preview on Home */}
@@ -218,7 +244,7 @@ const MainDashboard: React.FC = () => {
                   <div>
                     <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                       <BrainCircuit className="h-5 w-5 text-cyan-600" />
-                      <span>Live Delivery Digital Twin Preview</span>
+                      <span>Live Delivery Digital Twin &amp; Partner Telemetry</span>
                     </h3>
                     <p className="text-xs text-slate-500">
                       Real-time physics corridor engine predicting courier telemetry and chokepoints
@@ -478,7 +504,7 @@ const MainDashboard: React.FC = () => {
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <div>
                     <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-                      User Profile &amp; Demo Personas
+                      User Profile &amp; Account Preferences
                     </h2>
                     <p className="text-xs text-slate-500 mt-1">
                       Logged in as {user?.displayName || 'Dilip (AI Pilot)'} ({user?.email || 'dilipdhammu2@gmail.com'})
@@ -488,7 +514,7 @@ const MainDashboard: React.FC = () => {
                     onClick={() => setIsAuthOpen(true)}
                     className="rounded-xl bg-cyan-600 hover:bg-cyan-700 px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors"
                   >
-                    Switch Persona / Edit Details
+                    Manage Account / Edit Profile
                   </button>
                 </div>
               </div>
@@ -523,6 +549,7 @@ const MainDashboard: React.FC = () => {
       </main>
 
       {/* Modals and Drawers (Always mounted & state-driven) */}
+      <LocationSelectorModal />
       <CartDrawer />
       <CheckoutModal />
       <OrderConfirmedModal />

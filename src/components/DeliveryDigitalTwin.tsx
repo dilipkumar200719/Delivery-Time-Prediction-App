@@ -25,6 +25,7 @@ import {
 import { RealisticDeliveryMap } from './RealisticDeliveryMap';
 import { DeliveryTimeline } from './DeliveryTimeline';
 import { DeliveryPartnerCard } from './DeliveryPartnerCard';
+import { AIDeliveryPredictionCard } from './AIDeliveryPredictionCard';
 import { DeliveryIntelligenceCard } from './DeliveryIntelligenceCard';
 import { DeliveryAlertsFeed } from './DeliveryAlertsFeed';
 
@@ -170,8 +171,9 @@ export const DeliveryDigitalTwin: React.FC = () => {
           <DeliveryAlertsFeed />
         </div>
 
-        {/* Right Column: Smart ETA & Traffic/Weather Intelligence */}
+        {/* Right Column: AI Delivery Prediction (All 5 Standout Features) + Live Route & Weather */}
         <div className="lg:col-span-7 space-y-6">
+          <AIDeliveryPredictionCard />
           <DeliveryIntelligenceCard />
         </div>
 

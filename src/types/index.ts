@@ -252,3 +252,16 @@ export interface CityZone {
   x: number;
   y: number;
 }
+
+export type SupportedCity = 'Vijayawada' | 'Hyderabad' | 'Mumbai' | 'Chennai';
+
+export interface CityInfo {
+  id: SupportedCity;
+  name: string;
+  state: string;
+  center: [number, number];
+  restaurantCoord: [number, number];
+  customerCoord: [number, number];
+  popularArea: string;
+  tagline: string;
+}
