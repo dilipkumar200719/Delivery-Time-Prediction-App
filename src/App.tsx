@@ -18,7 +18,6 @@ import { DeliveryRushGame } from './components/games/DeliveryRushGame';
 import { CatchTheFoodGame } from './components/games/CatchTheFoodGame';
 import { GuessYourETAGame } from './components/games/GuessYourETAGame';
 import { FutureViewModal } from './components/FutureViewModal';
-import { JudgeModeModal } from './components/JudgeModeModal';
 import { RewardsWalletModal } from './components/RewardsWalletModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AuthModal } from './components/AuthModal';
@@ -53,7 +52,6 @@ const MainDashboard: React.FC = () => {
     conditions,
     updateConditions,
     activeGame,
-    setIsJudgeModeOpen,
     setIsWalletOpen,
     setIsFutureViewOpen,
     setIsCheckoutOpen,
@@ -81,10 +79,6 @@ const MainDashboard: React.FC = () => {
         setActiveTab('REWARDS');
         setIsWalletOpen(true);
       }
-      else if (target === 'judge' || target === 'judge-mode') {
-        setActiveTab('JUDGE');
-        setIsJudgeModeOpen(true);
-      }
       else if (target === 'future' || target === 'future-view') {
         setActiveTab('FUTURE');
         setIsFutureViewOpen(true);
@@ -105,7 +99,7 @@ const MainDashboard: React.FC = () => {
     handleHashChange();
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
-  }, [setActiveTab, setIsWalletOpen, setIsJudgeModeOpen, setIsFutureViewOpen, setIsCheckoutOpen, setIsAuthOpen]);
+  }, [setActiveTab, setIsWalletOpen, setIsFutureViewOpen, setIsCheckoutOpen, setIsAuthOpen]);
 
   // Sync state to hash without page reload
   useEffect(() => {
@@ -120,7 +114,6 @@ const MainDashboard: React.FC = () => {
       ROUTES: 'routes',
       DECISION_ROOM: 'decision-room',
       REWARDS: 'rewards',
-      JUDGE: 'judge',
       FUTURE: 'future',
       PROFILE: 'profile',
       CHECKOUT: 'checkout'
@@ -205,14 +198,6 @@ const MainDashboard: React.FC = () => {
                 className="rounded-xl border border-emerald-200 bg-emerald-50/80 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors flex items-center gap-1"
               >
                 <span>☀️</span> Clear Sprint (-4m)
-              </button>
-              <button
-                id="btn-open-judge-sandbox"
-                onClick={() => setIsJudgeModeOpen(true)}
-                className="rounded-xl border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-xs font-bold text-cyan-800 hover:bg-cyan-100 transition-colors flex items-center gap-1"
-              >
-                <Sliders className="h-3 w-3 text-cyan-600" />
-                <span>Custom Sandbox</span>
               </button>
             </div>
           </div>
@@ -456,36 +441,7 @@ const MainDashboard: React.FC = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* ROUTE 10: JUDGE MODE */}
-        {/* ========================================================================= */}
-        {activeTab === 'JUDGE' && (
-          <ErrorBoundary fallbackTitle="Judge Mode Recovery">
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="rounded-3xl border border-purple-200 bg-purple-50/60 p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-purple-600" />
-                    <span>Judge Mode — ML Stress Test Sandbox</span>
-                  </h2>
-                  <p className="text-xs text-slate-600 mt-1">
-                    Simulate extreme weather, severe gridlock, driver fatigue, and kitchen surges in real time.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setIsJudgeModeOpen(true)}
-                  className="rounded-xl bg-purple-600 hover:bg-purple-700 px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors"
-                >
-                  Launch Interactive Sliders
-                </button>
-              </div>
-              <DeliveryDigitalTwin />
-              <DecisionRoom />
-            </div>
-          </ErrorBoundary>
-        )}
-
-        {/* ========================================================================= */}
-        {/* ROUTE 11: FUTURE VIEW */}
+        {/* ROUTE 10: FUTURE VIEW */}
         {/* ========================================================================= */}
         {activeTab === 'FUTURE' && (
           <ErrorBoundary fallbackTitle="Future View Recovery">
@@ -571,7 +527,6 @@ const MainDashboard: React.FC = () => {
       <CheckoutModal />
       <OrderConfirmedModal />
       <FutureViewModal />
-      <JudgeModeModal />
       <RewardsWalletModal />
       <AdminDashboard />
       <AuthModal />

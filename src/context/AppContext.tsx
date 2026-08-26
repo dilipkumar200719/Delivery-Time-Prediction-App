@@ -54,8 +54,6 @@ interface AppContextType {
   setIsCheckoutOpen: (open: boolean) => void;
   orderConfirmedModal: OrderRecord | null;
   setOrderConfirmedModal: (order: OrderRecord | null) => void;
-  isJudgeModeOpen: boolean;
-  setIsJudgeModeOpen: (open: boolean) => void;
   isWalletOpen: boolean;
   setIsWalletOpen: (open: boolean) => void;
   isAuthOpen: boolean;
@@ -149,9 +147,12 @@ const DEFAULT_USER: UserProfile = {
   displayName: 'Dilip (AI Pilot)',
   deliveryPoints: 250,
   rewardBalanceRupees: 25,
+  totalDeliveries: 5,
+  gamesPlayed: 3,
   totalGamesPlayed: 3,
   totalOrdersPlaced: 5,
-  createdAt: new Date().toISOString()
+  createdAt: new Date().toISOString(),
+  lastLoginAt: new Date().toISOString()
 };
 
 const INITIAL_PREDICTION: PredictionResult = predictDelivery(DEFAULT_CONDITIONS, 'ORD-8553');
@@ -221,7 +222,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [adminSettings, setAdminSettings] = useState<AdminSettingsConfig>(DEFAULT_ADMIN_SETTINGS);
   
-  const [isJudgeModeOpen, setIsJudgeModeOpen] = useState(false);
   const [isWalletOpen, setIsWalletOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
@@ -981,8 +981,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setIsCheckoutOpen,
         orderConfirmedModal,
         setOrderConfirmedModal,
-        isJudgeModeOpen,
-        setIsJudgeModeOpen,
         isWalletOpen,
         setIsWalletOpen,
         isAuthOpen,

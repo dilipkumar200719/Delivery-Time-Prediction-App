@@ -19,7 +19,6 @@ export type AppTab =
   | 'ROUTES' 
   | 'DECISION_ROOM' 
   | 'REWARDS' 
-  | 'JUDGE' 
   | 'FUTURE' 
   | 'PROFILE' 
   | 'CHECKOUT';
@@ -148,6 +147,7 @@ export interface UserProfile {
   deliveryPoints: number;
   rewardBalanceRupees: number;
   totalDeliveries: number;
+  totalOrdersPlaced?: number;
   gamesPlayed: number;
   totalGamesPlayed?: number;
   totalVouchersRedeemed?: number;

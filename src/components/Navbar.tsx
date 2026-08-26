@@ -28,7 +28,6 @@ export const Navbar: React.FC = () => {
     setActiveTab,
     cartCount,
     setIsCartOpen,
-    setIsJudgeModeOpen,
     setIsWalletOpen,
     setIsAuthOpen,
     setIsAdminOpen,
@@ -118,7 +117,7 @@ export const Navbar: React.FC = () => {
           })}
         </nav>
 
-        {/* Right Section: Search, Points, Cart, Judge Mode & Profile */}
+        {/* Right Section: Search, Points, Cart & Profile */}
         <div className="flex items-center gap-2 sm:gap-3">
           
           {/* Quick Search */}
@@ -143,22 +142,6 @@ export const Navbar: React.FC = () => {
             <Coins className="h-3.5 w-3.5 text-amber-600" />
             <span>{user?.deliveryPoints ?? 250} Pts</span>
             <span className="hidden sm:inline text-amber-700/80 font-normal">• ₹{user?.rewardBalanceRupees ?? 25}</span>
-          </button>
-
-          {/* Judge Mode Button */}
-          <button
-            id="nav-judge-button"
-            onClick={() => setIsJudgeModeOpen(true)}
-            className="group relative flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-50 to-pink-50 border border-pink-200 px-3 py-1.5 text-xs font-bold text-pink-700 hover:border-pink-300 hover:bg-pink-100/70 transition-all shadow-xs"
-            title="Live ML Interactive Simulator"
-          >
-            <Sparkles className="h-3.5 w-3.5 text-pink-600 group-hover:rotate-12 transition-transform" />
-            <span className="hidden sm:inline">🎤</span>
-            <span className="font-extrabold tracking-tight">JUDGE MODE</span>
-            <span className="absolute -top-1 -right-1 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-pink-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-pink-500"></span>
-            </span>
           </button>
 
           {/* Cart Button with Reactive Badge */}

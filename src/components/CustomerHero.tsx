@@ -21,7 +21,6 @@ export const CustomerHero: React.FC = () => {
     setActiveTab,
     updateConditions,
     predictNow,
-    setIsJudgeModeOpen,
     activeOrder
   } = useApp();
 

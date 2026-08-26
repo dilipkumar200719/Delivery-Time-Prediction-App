@@ -84,9 +84,17 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
     distanceKm: 4.2,
     estimatedMinutes: 18,
     trafficSummary: 'Optimal AI Transit Path',
+    weatherImpact: 'Low Friction (Dry Road)',
     isRecommended: true,
     riskLevel: 'LOW',
     score: 94,
+    pathPoints: [
+      { x: 50, y: 50 },
+      { x: 150, y: 120 },
+      { x: 300, y: 220 },
+      { x: 450, y: 350 }
+    ],
+    highlightReason: 'Fastest transit time with minimal traffic bottlenecks',
     geoCoordinates: [
       RESTAURANT_COORD,
       [17.4504, 78.3808],

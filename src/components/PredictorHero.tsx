@@ -24,7 +24,6 @@ export const PredictorHero: React.FC = () => {
     predictNow,
     updateConditions,
     createOrderAndStartSimulation,
-    setIsJudgeModeOpen,
     setIsFutureViewOpen
   } = useApp();
 
