@@ -31,6 +31,7 @@ import { AIInsightsPanel } from './components/AIInsightsPanel';
 import { AIModelPerformanceDashboard } from './components/AIModelPerformanceDashboard';
 import { RiderDashboard } from './components/RiderDashboard';
 import { CustomerDashboard } from './components/CustomerDashboard';
+import { CustomerOtpModal } from './components/CustomerOtpModal';
 import { RoleSelectorBar } from './components/RoleSelectorBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppTab } from './types';
@@ -604,6 +605,7 @@ const MainDashboard: React.FC = () => {
       <CartDrawer />
       <CheckoutModal />
       <OrderConfirmedModal />
+      <CustomerOtpModal />
       <FutureViewModal />
       <RewardsWalletModal />
       <AdminDashboard />

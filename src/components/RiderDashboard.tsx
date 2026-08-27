@@ -44,6 +44,10 @@ export const RiderDashboard: React.FC = () => {
     updateOrderStatus,
     riderAdvanceWorkflowStage,
     riderVerifyOtp,
+    requestDeliveryOtp,
+    isRiderArrived,
+    otpRequested,
+    isWaitingForOtp,
     selectRoute,
     isDeliveryCompleted,
     resetSimulation,
@@ -65,9 +69,9 @@ export const RiderDashboard: React.FC = () => {
   const deliveryOtp = activeOrder?.deliveryOtp || '8553';
   const customerName = activeOrder?.customerName || 'Dilip (AI Pilot)';
   const restaurantName = activeOrder?.restaurantName || 'Spice Route Kitchen';
-  const distanceKm = tracking?.distanceRemainingKm ?? conditions.distanceKm;
-  const speedKmh = tracking?.speedKmh ?? 32;
-  const etaMinutes = isDeliveryCompleted ? 0 : (tracking?.etaMinutes ?? prediction?.predictedEtaMinutes ?? 24);
+  const distanceKm = isWaitingForOtp || isDeliveryCompleted ? 0 : (tracking?.distanceRemainingKm ?? conditions.distanceKm);
+  const speedKmh = isWaitingForOtp || isDeliveryCompleted ? 0 : (tracking?.speedKmh ?? 32);
+  const etaMinutes = isDeliveryCompleted || isWaitingForOtp ? 0 : (tracking?.etaMinutes ?? prediction?.predictedEtaMinutes ?? 24);
 
   const toggleItemChecked = (itemName: string) => {
     setCheckedItems(prev => ({ ...prev, [itemName]: !prev[itemName] }));
@@ -86,8 +90,16 @@ export const RiderDashboard: React.FC = () => {
     }
   };
 
+  const handleRequestOtpClick = () => {
+    requestDeliveryOtp();
+  };
+
   const handleWorkflowClick = async (status: OrderStatus) => {
-    await riderAdvanceWorkflowStage(status);
+    if (status === 'ARRIVING_SOON') {
+      requestDeliveryOtp();
+    } else {
+      await riderAdvanceWorkflowStage(status);
+    }
   };
 
   const handleEmergencyCall = () => {
@@ -470,8 +482,9 @@ export const RiderDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* OTP Verification Box */}
-            <div className="rounded-2xl border border-cyan-300 bg-gradient-to-br from-cyan-50/90 via-sky-50/50 to-white p-4 space-y-3">
+            {/* OTP Verification & Customer Handover Box */}
+            <div className="rounded-2xl border-2 border-cyan-400 bg-gradient-to-br from-cyan-50/90 via-sky-50/50 to-white p-4 space-y-3 shadow-sm">
+              
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <KeyRound className="h-4 w-4 text-cyan-700" />
@@ -479,36 +492,99 @@ export const RiderDashboard: React.FC = () => {
                     Handover OTP Verification
                   </span>
                 </div>
-                <span className="text-[11px] font-mono font-bold text-slate-600 bg-white px-2 py-0.5 rounded-md border border-cyan-200">
-                  Demo PIN: {deliveryOtp}
+                <span className="text-[11px] font-mono font-bold text-slate-700 bg-white px-2 py-0.5 rounded-md border border-cyan-200 shadow-2xs">
+                  Customer PIN: <strong className="text-cyan-800">{deliveryOtp}</strong>
                 </span>
               </div>
 
-              <form onSubmit={handleOtpSubmit} className="flex gap-2">
-                <input
-                  type="text"
-                  maxLength={4}
-                  value={enteredOtp}
-                  onChange={(e) => setEnteredOtp(e.target.value)}
-                  placeholder="Enter 4-digit OTP"
-                  className="flex-1 rounded-xl border border-cyan-300 px-3 py-2 text-center font-mono text-base font-black tracking-widest text-slate-900 focus:border-cyan-500 focus:outline-hidden focus:ring-2 focus:ring-cyan-500/20 bg-white shadow-2xs"
-                />
-                <button
-                  type="submit"
-                  id="btn-verify-otp-rider"
-                  className="rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-2 text-xs font-black text-white hover:from-cyan-500 hover:to-blue-500 transition-all shadow-md shadow-cyan-600/20 flex items-center gap-1 shrink-0"
-                >
-                  <ShieldCheck className="h-4 w-4" />
-                  <span>Verify</span>
-                </button>
-              </form>
+              {/* Status breakdown when arriving / arrived */}
+              <div className="rounded-xl bg-white/80 border border-cyan-200 p-3 space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Delivery Status:</span>
+                  <span className={`font-bold ${isDeliveryCompleted ? 'text-emerald-700' : (isWaitingForOtp ? 'text-amber-700 font-black animate-pulse' : 'text-slate-800')}`}>
+                    {isDeliveryCompleted ? '✓ Completed' : (isWaitingForOtp ? 'Arrived • Waiting for OTP' : 'En Route to Drop-off')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">Distance to Customer:</span>
+                  <span className="font-mono font-bold text-slate-800">{distanceKm} km</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 font-medium">OTP Verification:</span>
+                  <span className={`font-bold px-2 py-0.5 rounded-md text-[10px] ${
+                    isDeliveryCompleted
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                      : otpRequested
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                      : 'bg-slate-100 text-slate-700 border border-slate-200'
+                  }`}>
+                    {isDeliveryCompleted ? '✓ VERIFIED' : (otpRequested ? 'REQUESTED (PENDING)' : 'NOT REQUESTED')}
+                  </span>
+                </div>
+              </div>
 
-              {otpSuccess && (
-                <div className="rounded-xl bg-emerald-100 text-emerald-950 border border-emerald-300 p-2 text-xs font-bold flex items-center gap-1.5 animate-in fade-in">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
-                  <span>OTP Verified successfully! Delivery completed.</span>
+              {/* Action: REQUEST OTP BUTTON */}
+              {!isDeliveryCompleted && (
+                <div className="space-y-2">
+                  {!otpRequested ? (
+                    <button
+                      id="btn-rider-request-otp"
+                      onClick={handleRequestOtpClick}
+                      className="w-full rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-4 py-2.5 text-xs font-black text-white hover:from-amber-600 hover:to-orange-700 transition-all shadow-md shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                    >
+                      <KeyRound className="h-4 w-4" />
+                      <span>REQUEST OTP FROM CUSTOMER</span>
+                    </button>
+                  ) : (
+                    <div className="rounded-xl bg-amber-50 border border-amber-300 p-2.5 text-xs font-bold text-amber-950 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                        <span>OTP Request Sent ✓ Waiting for Customer...</span>
+                      </span>
+                      <button
+                        onClick={handleRequestOtpClick}
+                        className="text-[10px] underline text-amber-800 hover:text-amber-950"
+                      >
+                        Resend
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
+
+              {/* Manual OTP entry form by Rider if customer provides verbally */}
+              {!isDeliveryCompleted ? (
+                <form onSubmit={handleOtpSubmit} className="space-y-2 pt-1">
+                  <span className="text-[11px] font-bold text-slate-600 block">
+                    Or Enter Customer OTP Manually:
+                  </span>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      maxLength={4}
+                      value={enteredOtp}
+                      onChange={(e) => setEnteredOtp(e.target.value)}
+                      placeholder="e.g. 8553"
+                      className="flex-1 rounded-xl border border-cyan-300 px-3 py-2 text-center font-mono text-base font-black tracking-widest text-slate-900 focus:border-cyan-500 focus:outline-hidden focus:ring-2 focus:ring-cyan-500/20 bg-white shadow-2xs"
+                    />
+                    <button
+                      type="submit"
+                      id="btn-verify-otp-rider"
+                      className="rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-2 text-xs font-black text-white hover:from-cyan-500 hover:to-blue-500 transition-all shadow-md shadow-cyan-600/20 flex items-center gap-1 shrink-0 cursor-pointer active:scale-95"
+                    >
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>Verify</span>
+                    </button>
+                  </div>
+                </form>
+              ) : null}
+
+              {otpSuccess || isDeliveryCompleted ? (
+                <div className="rounded-xl bg-emerald-100 text-emerald-950 border border-emerald-300 p-2.5 text-xs font-bold flex items-center gap-2 animate-in fade-in">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0" />
+                  <span>✓ OTP VERIFIED — Delivery Completed Successfully!</span>
+                </div>
+              ) : null}
 
               {otpError && (
                 <div className="rounded-xl bg-rose-100 text-rose-950 border border-rose-300 p-2 text-xs font-bold flex items-center gap-1.5 animate-in fade-in">

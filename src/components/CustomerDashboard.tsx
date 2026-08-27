@@ -7,6 +7,7 @@ import { AIDeliveryPredictionCard } from './AIDeliveryPredictionCard';
 import { RouteBattle } from './RouteBattle';
 import { AIModelPerformanceDashboard } from './AIModelPerformanceDashboard';
 import { RoleSelectorBar } from './RoleSelectorBar';
+import { CustomerOtpNotification } from './CustomerOtpNotification';
 import {
   Clock,
   Sparkles,
@@ -25,7 +26,8 @@ import {
   TrendingDown,
   Navigation,
   RefreshCw,
-  Sliders
+  Sliders,
+  KeyRound
 } from 'lucide-react';
 import { OrderStatus } from '../types';
 
@@ -38,6 +40,8 @@ export const CustomerDashboard: React.FC = () => {
     selectedCity,
     setActiveTab,
     isDeliveryCompleted,
+    isWaitingForOtp,
+    setIsOtpModalOpen,
     resetSimulation
   } = useApp();
 
@@ -46,6 +50,7 @@ export const CustomerDashboard: React.FC = () => {
   const restaurantName = activeOrder?.restaurantName || 'Spice Route Kitchen';
   const customerName = activeOrder?.customerName || 'Dilip (AI Pilot)';
   const currentStatus = activeOrder?.status || 'OUT_FOR_DELIVERY';
+  const deliveryOtp = activeOrder?.deliveryOtp || '8553';
 
   const etaMinutes = isDeliveryCompleted ? 0 : (tracking?.etaMinutes ?? prediction?.predictedEtaMinutes ?? 24);
   const etaRangeMin = isDeliveryCompleted ? 0 : Math.max(1, etaMinutes - 3);
@@ -60,9 +65,10 @@ export const CustomerDashboard: React.FC = () => {
   const arrivalTimeMin = new Date(now.getTime() + etaRangeMin * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const arrivalTimeMax = new Date(now.getTime() + etaRangeMax * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // ETA Status (Early, On Time, Delayed)
+  // ETA Status (Early, On Time, Delayed, Waiting for OTP)
   const getEtaStatus = () => {
     if (isDeliveryCompleted) return { label: 'Delivered', color: 'bg-emerald-100 text-emerald-950 border-emerald-300' };
+    if (isWaitingForOtp) return { label: 'Arrived • Waiting for OTP', color: 'bg-amber-100 text-amber-950 border-amber-300 animate-pulse' };
     if (conditions.trafficLevel === 'SEVERE' || conditions.storeStatus === 'DELAYED') {
       return { label: 'Possible Delay (+4m)', color: 'bg-rose-100 text-rose-950 border-rose-300' };
     }
@@ -85,6 +91,9 @@ export const CustomerDashboard: React.FC = () => {
       
       {/* 1. Prominent Role Selector Bar */}
       <RoleSelectorBar />
+
+      {/* 1.5. Prominent Top Customer OTP Notification Banner */}
+      <CustomerOtpNotification />
 
       {/* 2. Customer Hero Order Summary Banner */}
       <div className="rounded-3xl border border-orange-200/90 bg-gradient-to-br from-orange-50/95 via-amber-50/50 to-cyan-50/30 p-5 sm:p-6 shadow-sm">
@@ -113,33 +122,55 @@ export const CustomerDashboard: React.FC = () => {
             </p>
           </div>
 
-          {/* Big ETA Countdown Highlight Box */}
-          <div className="flex items-center gap-4 bg-white/90 p-4 rounded-2xl border border-orange-200 shadow-2xs backdrop-blur-md">
-            <div className="text-right">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
-                Estimated Delivery Window
-              </span>
-              <div className="text-2xl sm:text-3xl font-black font-mono text-cyan-950 flex items-center justify-end gap-1">
-                <span>{etaRangeMin}–{etaRangeMax}</span>
-                <span className="text-sm font-sans font-bold text-slate-600">min</span>
+          {/* OTP Quick Verification Box or ETA Countdown Highlight Box */}
+          {isWaitingForOtp ? (
+            <div className="flex items-center gap-3 bg-white p-4 rounded-2xl border-2 border-amber-400 shadow-md animate-in fade-in">
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 block">
+                  Delivery OTP
+                </span>
+                <span className="font-mono text-2xl font-black text-slate-900 tracking-wider">
+                  {deliveryOtp}
+                </span>
+                <span className="text-[10px] text-slate-500 block">Share with rider</span>
               </div>
-              <span className="text-[11px] font-medium text-slate-500">
-                Arrival by <strong className="text-slate-800 font-bold">{arrivalTimeMin} – {arrivalTimeMax}</strong>
-              </span>
+              <button
+                id="btn-customer-enter-otp-hero"
+                onClick={() => setIsOtpModalOpen(true)}
+                className="rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-white px-4 py-2.5 text-xs font-black hover:from-amber-600 hover:to-orange-700 transition-all shadow-md shadow-amber-500/20 flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                <span>ENTER OTP</span>
+              </button>
             </div>
-
-            <div className="h-10 w-px bg-slate-200 hidden sm:block" />
-
-            <div className="hidden sm:block text-left">
-              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block">
-                Confidence
-              </span>
-              <div className="text-lg font-black text-emerald-600 font-mono">
-                {confidencePercent}%
+          ) : (
+            <div className="flex items-center gap-4 bg-white/90 p-4 rounded-2xl border border-orange-200 shadow-2xs backdrop-blur-md">
+              <div className="text-right">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">
+                  Estimated Delivery Window
+                </span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-cyan-950 flex items-center justify-end gap-1">
+                  <span>{etaRangeMin}–{etaRangeMax}</span>
+                  <span className="text-sm font-sans font-bold text-slate-600">min</span>
+                </div>
+                <span className="text-[11px] font-medium text-slate-500">
+                  Arrival by <strong className="text-slate-800 font-bold">{arrivalTimeMin} – {arrivalTimeMax}</strong>
+                </span>
               </div>
-              <span className="text-[10px] text-slate-400">ML Calibrated</span>
+
+              <div className="h-10 w-px bg-slate-200 hidden sm:block" />
+
+              <div className="hidden sm:block text-left">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 block">
+                  Confidence
+                </span>
+                <div className="text-lg font-black text-emerald-600 font-mono">
+                  {confidencePercent}%
+                </div>
+                <span className="text-[10px] text-slate-400">ML Calibrated</span>
+              </div>
             </div>
-          </div>
+          )}
 
         </div>
       </div>

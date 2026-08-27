@@ -21,30 +21,35 @@ interface TimelineStep {
 }
 
 export const DeliveryTimeline: React.FC<{ className?: string }> = ({ className = '' }) => {
-  const { tracking, activeOrder } = useApp();
+  const { tracking, activeOrder, isDeliveryCompleted, isWaitingForOtp } = useApp();
 
   const progress = tracking?.driverPosition?.progress ?? 32;
-  const etaMinutes = tracking?.etaMinutes ?? 28;
-  const etaRangeMin = Math.max(12, Math.round(etaMinutes * 0.9));
-  const etaRangeMax = Math.max(etaRangeMin + 4, Math.round(etaMinutes * 1.15));
+  const etaMinutes = (isDeliveryCompleted || isWaitingForOtp) ? 0 : (tracking?.etaMinutes ?? 28);
+  const etaRangeMin = Math.max(1, Math.round(etaMinutes * 0.9));
+  const etaRangeMax = Math.max(etaRangeMin + 3, Math.round(etaMinutes * 1.15));
 
-  // Derive 6 standard stages based on progress:
+  // Derive 6 standard stages based on progress & OTP verification:
   // 0: Order Confirmed
   // 1: Restaurant Preparing
   // 2: Food Ready
   // 3: Rider Picked Up
   // 4: On the Way
-  // 5: Delivered
+  // 5: Delivered / Waiting for OTP
   const getStepStatus = (stepIndex: number): 'completed' | 'current' | 'upcoming' => {
-    if (progress >= 100) {
-      return stepIndex === 5 ? 'current' : 'completed';
+    if (isDeliveryCompleted) {
+      return 'completed';
     }
-    if (progress >= 25) {
+    if (isWaitingForOtp || progress >= 95) {
+      if (stepIndex < 5) return 'completed';
+      if (stepIndex === 5) return 'current';
+      return 'upcoming';
+    }
+    if (progress >= 30) {
       if (stepIndex < 4) return 'completed';
       if (stepIndex === 4) return 'current';
       return 'upcoming';
     }
-    if (progress >= 15) {
+    if (progress >= 18) {
       if (stepIndex < 3) return 'completed';
       if (stepIndex === 3) return 'current';
       return 'upcoming';
@@ -90,7 +95,7 @@ export const DeliveryTimeline: React.FC<{ className?: string }> = ({ className =
     {
       id: 'step_picked_up',
       title: 'Rider Picked Up',
-      subtitle: 'Rahul scanned bag OTP',
+      subtitle: 'Rahul collected hot food bag',
       time: '4:24 PM',
       status: getStepStatus(3),
       icon: Bike
@@ -98,16 +103,16 @@ export const DeliveryTimeline: React.FC<{ className?: string }> = ({ className =
     {
       id: 'step_on_way',
       title: 'On the Way',
-      subtitle: `Speed ~${tracking?.speedKmh || 28} km/h • Knowledge Corridor`,
-      time: `${etaRangeMin}–${etaRangeMax}m ETA`,
+      subtitle: `Speed ~${tracking?.speedKmh || 28} km/h • Transit Corridor`,
+      time: isWaitingForOtp ? 'Arrived' : `${etaRangeMin}–${etaRangeMax}m ETA`,
       status: getStepStatus(4),
       icon: MapPin
     },
     {
       id: 'step_delivered',
-      title: 'Delivered',
-      subtitle: 'Handover at doorstep PIN: 8553',
-      time: 'Destination',
+      title: isDeliveryCompleted ? 'Delivered' : (isWaitingForOtp ? 'Waiting for OTP' : 'Doorstep Handover'),
+      subtitle: isDeliveryCompleted ? 'Verified with OTP ✓ Completed' : 'Enter OTP to verify handover',
+      time: isDeliveryCompleted ? 'Completed' : (isWaitingForOtp ? 'Pending OTP' : 'Destination'),
       status: getStepStatus(5),
       icon: PartyPopper
     }

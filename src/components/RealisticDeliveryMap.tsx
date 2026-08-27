@@ -54,7 +54,9 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
     prediction,
     activeOrder,
     selectedCity,
-    isDeliveryCompleted
+    isDeliveryCompleted,
+    isWaitingForOtp,
+    setIsOtpModalOpen
   } = useApp();
 
   const cityInfo = SUPPORTED_CITIES[selectedCity] || SUPPORTED_CITIES.Vijayawada;
@@ -564,34 +566,57 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
         {/* Leaflet DOM container */}
         <div ref={mapContainerRef} className="absolute inset-0 h-full w-full bg-slate-100" />
 
-        {/* Top-Left Floating Live ETA Summary Card (Colorful Gradient) */}
+        {/* Top-Left Floating Live ETA Summary Card */}
         <div className="absolute top-4 left-4 z-20 w-64 sm:w-72 rounded-2xl border border-cyan-200 bg-white/95 p-4 shadow-xl backdrop-blur-md">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <span className="text-[10px] font-black uppercase tracking-wider text-cyan-900 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-cyan-600" />
-              AI Predicted Arrival
+              {isWaitingForOtp ? 'At Customer Location' : 'AI Predicted Arrival'}
             </span>
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-900 border border-emerald-200">
-              92% High Confidence
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${
+              isDeliveryCompleted
+                ? 'bg-emerald-100 text-emerald-900 border-emerald-200'
+                : isWaitingForOtp
+                ? 'bg-amber-100 text-amber-950 border-amber-300 animate-pulse'
+                : 'bg-emerald-100 text-emerald-900 border-emerald-200'
+            }`}>
+              {isDeliveryCompleted ? '✓ Completed' : (isWaitingForOtp ? '● Waiting for OTP' : '92% High Confidence')}
             </span>
           </div>
 
           <div className="pt-2 flex items-baseline justify-between">
             <div>
-              <div className="text-3xl font-black text-slate-900 tracking-tight">
-                {eta} <span className="text-sm font-bold text-cyan-700">MIN</span>
-              </div>
-              <p className="text-[11px] font-medium text-slate-500 mt-0.5">
-                {isDeliveryCompleted
-                  ? 'Delivered at Doorstep'
-                  : `Expected ~${new Date(Date.now() + eta * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
-              </p>
+              {isWaitingForOtp ? (
+                <div className="space-y-1">
+                  <div className="text-lg font-black text-amber-900">
+                    Rider Arrived
+                  </div>
+                  <button
+                    onClick={() => setIsOtpModalOpen(true)}
+                    className="rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-black px-2.5 py-1 flex items-center gap-1 shadow-xs cursor-pointer active:scale-95"
+                  >
+                    <ShieldCheck className="h-3 w-3" />
+                    <span>Enter OTP</span>
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="text-3xl font-black text-slate-900 tracking-tight">
+                    {isDeliveryCompleted ? '0' : eta} <span className="text-sm font-bold text-cyan-700">MIN</span>
+                  </div>
+                  <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+                    {isDeliveryCompleted
+                      ? 'Delivered at Doorstep'
+                      : `Expected ~${new Date(Date.now() + eta * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                  </p>
+                </>
+              )}
             </div>
 
             <div className="text-right">
-              <div className="text-xs font-black text-slate-900">{remainingDist} km left</div>
+              <div className="text-xs font-black text-slate-900">{isWaitingForOtp || isDeliveryCompleted ? 0 : remainingDist} km left</div>
               <div className="text-[10px] font-mono text-emerald-700 font-bold">
-                {isDeliveryCompleted ? 'Delivered' : `${currentSpeed} km/h cruising`}
+                {isDeliveryCompleted ? 'Delivered' : (isWaitingForOtp ? 'At Doorstep' : `${currentSpeed} km/h cruising`)}
               </div>
             </div>
           </div>

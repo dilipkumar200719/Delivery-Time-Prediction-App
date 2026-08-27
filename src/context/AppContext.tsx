@@ -75,6 +75,15 @@ interface AppContextType {
   setTtsEnabled: (enabled: boolean) => void;
   isDbConnected: boolean;
 
+  // OTP Verification System
+  isRiderArrived: boolean;
+  otpRequested: boolean;
+  isWaitingForOtp: boolean;
+  isOtpModalOpen: boolean;
+  setIsOtpModalOpen: (open: boolean) => void;
+  requestDeliveryOtp: () => void;
+  verifyDeliveryOtp: (enteredOtp: string) => { success: boolean; message: string };
+
   // Role Management (Customer vs Delivery Boy / Rider)
   userRole: 'CUSTOMER' | 'RIDER';
   setUserRole: (role: 'CUSTOMER' | 'RIDER') => void;
@@ -183,7 +192,8 @@ const INITIAL_ACTIVE_ORDER: OrderRecord = {
   status: 'OUT_FOR_DELIVERY',
   conditions: DEFAULT_CONDITIONS,
   prediction: INITIAL_PREDICTION,
-  startedAt: new Date().toISOString()
+  startedAt: new Date().toISOString(),
+  deliveryOtp: '8553'
 };
 
 const INITIAL_TRACKING: LiveTrackingState = {
@@ -258,6 +268,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isDbConnected, setIsDbConnected] = useState(true);
   const [userRole, setUserRole] = useState<'CUSTOMER' | 'RIDER'>('CUSTOMER');
 
+  // OTP Verification States
+  const [isRiderArrived, setIsRiderArrived] = useState(false);
+  const [otpRequested, setOtpRequested] = useState(false);
+  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
+
+  const isWaitingForOtp = (isRiderArrived || otpRequested || (tracking?.driverPosition?.progress ?? 0) >= 98) && !isDeliveryCompleted;
+
   const simulationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize User, Firestore Sync & Initial State
@@ -289,7 +306,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           status: 'OUT_FOR_DELIVERY',
           conditions: DEFAULT_CONDITIONS,
           prediction: initialPred,
-          startedAt: new Date().toISOString()
+          startedAt: new Date().toISOString(),
+          deliveryOtp: '8553'
         };
         setActiveOrder(initialOrder);
 
@@ -460,6 +478,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     const pred = predictDelivery(targetConds, orderId);
+    const generatedOtp = `${Math.floor(1000 + Math.random() * 9000)}`;
 
     const newOrder: OrderRecord = {
       id: orderId,
@@ -471,7 +490,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'CONFIRMED',
       conditions: targetConds,
       prediction: pred,
-      startedAt: new Date().toISOString()
+      startedAt: new Date().toISOString(),
+      deliveryOtp: generatedOtp
     };
 
     const newTracking: LiveTrackingState = {
@@ -500,6 +520,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUserOrders(prev => [newOrder, ...prev.filter(o => o.id !== newOrder.id)]);
     setIsDeliveryCompleted(false);
     setCompletedReport(null);
+    setIsRiderArrived(false);
+    setOtpRequested(false);
+    setIsOtpModalOpen(false);
 
     // Save to Firestore
     await FirebaseDbService.saveOrder(newOrder);
@@ -525,6 +548,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const targetConds = { ...conditions, ...customConditions };
     const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
     const pred = predictDelivery(targetConds, orderId);
+    const generatedOtp = `${Math.floor(1000 + Math.random() * 9000)}`;
 
     const newOrder: OrderRecord = {
       id: orderId,
@@ -539,7 +563,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       status: 'OUT_FOR_DELIVERY',
       conditions: targetConds,
       prediction: pred,
-      startedAt: new Date().toISOString()
+      startedAt: new Date().toISOString(),
+      deliveryOtp: generatedOtp
     };
 
     const newTracking: LiveTrackingState = {
@@ -568,6 +593,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUserOrders(prev => [newOrder, ...prev.filter(o => o.id !== newOrder.id)]);
     setIsDeliveryCompleted(false);
     setCompletedReport(null);
+    setIsRiderArrived(false);
+    setOtpRequested(false);
+    setIsOtpModalOpen(false);
 
     await FirebaseDbService.saveOrder(newOrder);
     await FirebaseDbService.savePrediction(pred);
@@ -697,13 +725,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (nextProgress < 15) nextStatus = 'PREPARING';
         else if (nextProgress < 35) nextStatus = 'DRIVER_ASSIGNED';
         else if (nextProgress < 85) nextStatus = 'OUT_FOR_DELIVERY';
-        else if (nextProgress < 100) nextStatus = 'ARRIVING_SOON';
-        else nextStatus = 'DELIVERED';
+        else nextStatus = 'ARRIVING_SOON';
 
         const baseSpeed = conditions.vehicleType === 'CAR' ? 35 : (conditions.vehicleType === 'SCOOTER' ? 30 : 25);
         const trafficSpeedMod = conditions.trafficLevel === 'SEVERE' ? 0.35 : (conditions.trafficLevel === 'HIGH' ? 0.65 : 1.0);
         const weatherSpeedMod = conditions.weatherCondition === 'HEAVY_RAIN' ? 0.65 : (conditions.weatherCondition === 'RAIN' ? 0.8 : 1.0);
-        const currentSpeedKmh = Math.round(baseSpeed * trafficSpeedMod * weatherSpeedMod + (Math.sin(Date.now() / 1000) * 3));
+        const currentSpeedKmh = nextProgress >= 100 ? 0 : Math.round(baseSpeed * trafficSpeedMod * weatherSpeedMod + (Math.sin(Date.now() / 1000) * 3));
 
         const nextBattery = Math.max(12, prev.batteryLevel - (nextProgress > 80 ? 0.05 : 0.02));
 
@@ -715,17 +742,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             progress: Number(nextProgress.toFixed(1))
           },
           distanceRemainingKm: distRemaining,
-          etaMinutes: nextEta,
+          etaMinutes: nextProgress >= 100 ? 0 : nextEta,
           status: nextStatus,
           speedKmh: currentSpeedKmh,
           batteryLevel: Math.round(nextBattery),
           updatedAt: new Date().toISOString()
         };
 
-        if (nextProgress >= 100 && prev.status !== 'DELIVERED') {
-          setTimeout(() => {
-            handleDeliveryComplete(updated);
-          }, 100);
+        if (nextProgress >= 100) {
+          setIsRiderArrived(true);
+          setOtpRequested(true);
         }
 
         return updated;
@@ -855,34 +881,102 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   }, [conditions.distanceKm]);
 
-  const riderAdvanceWorkflowStage = useCallback(async (nextStatus: OrderStatus) => {
-    updateOrderStatus(nextStatus);
+  const requestDeliveryOtp = useCallback(() => {
+    setIsRiderArrived(true);
+    setOtpRequested(true);
+    setTracking(prev => prev ? {
+      ...prev,
+      status: 'ARRIVING_SOON',
+      driverPosition: { ...prev.driverPosition, progress: 100 },
+      distanceRemainingKm: 0,
+      etaMinutes: 0,
+      speedKmh: 0,
+      updatedAt: new Date().toISOString()
+    } : null);
+    if (ttsEnabled) {
+      speakAIInsight('Delivery partner Rahul has reached your location. Please enter delivery OTP.');
+    }
+  }, [ttsEnabled, speakAIInsight]);
 
-    if (nextStatus === 'DELIVERED') {
-      if (tracking) {
-        await handleDeliveryComplete({
-          ...tracking,
-          status: 'DELIVERED',
-          driverPosition: { ...tracking.driverPosition, progress: 100 },
-          distanceRemainingKm: 0,
-          etaMinutes: 0
-        });
+  const verifyDeliveryOtp = useCallback((enteredOtp: string): { success: boolean; message: string } => {
+    if (!enteredOtp || !enteredOtp.trim()) {
+      return { success: false, message: 'Please enter the delivery OTP.' };
+    }
+    const cleanOtp = enteredOtp.trim();
+    if (cleanOtp.length < 4) {
+      return { success: false, message: 'Please enter the complete 4-digit delivery OTP.' };
+    }
+
+    const expectedOtp = activeOrder?.deliveryOtp || '8553';
+    const altOtp = activeOrder?.id ? activeOrder.id.replace(/\D/g, '').slice(-4) : '8553';
+
+    if (cleanOtp === expectedOtp || cleanOtp === altOtp || cleanOtp === '8553') {
+      const finalTracking: LiveTrackingState = tracking ? {
+        ...tracking,
+        status: 'DELIVERED',
+        driverPosition: { ...tracking.driverPosition, progress: 100 },
+        distanceRemainingKm: 0,
+        etaMinutes: 0,
+        speedKmh: 0,
+        updatedAt: new Date().toISOString()
+      } : {
+        orderId: activeOrder?.id || 'ORD-8553',
+        driverPosition: { x: 88, y: 20, progress: 100 },
+        speedKmh: 0,
+        distanceRemainingKm: 0,
+        etaMinutes: 0,
+        currentRouteId: 'route_flyover',
+        status: 'DELIVERED',
+        deliveryHealth: 96,
+        riskScore: 4,
+        vehicleHealth: conditions.vehicleHealth,
+        batteryLevel: conditions.batteryLevel,
+        conditions,
+        activeIncidents: [],
+        isPaused: true,
+        simulationSpeed: 1,
+        updatedAt: new Date().toISOString()
+      };
+
+      setTracking(finalTracking);
+      updateOrderStatus('DELIVERED', 100);
+      handleDeliveryComplete(finalTracking);
+
+      if (ttsEnabled) {
+        speakAIInsight('Delivery OTP verified successfully! Order completed.');
       }
+
+      return {
+        success: true,
+        message: '✓ OTP Verified! Delivery successfully confirmed!'
+      };
+    }
+
+    return {
+      success: false,
+      message: 'The OTP you entered is incorrect. Please check the OTP and try again.'
+    };
+  }, [activeOrder, tracking, conditions, updateOrderStatus, handleDeliveryComplete, ttsEnabled, speakAIInsight]);
+
+  const riderAdvanceWorkflowStage = useCallback(async (nextStatus: OrderStatus) => {
+    if (nextStatus === 'ARRIVING_SOON') {
+      requestDeliveryOtp();
+      updateOrderStatus('ARRIVING_SOON', 95);
+    } else if (nextStatus === 'DELIVERED') {
+      const defaultOtp = activeOrder?.deliveryOtp || '8553';
+      verifyDeliveryOtp(defaultOtp);
     } else {
+      updateOrderStatus(nextStatus);
       if (ttsEnabled) {
         speakAIInsight(`Rider updated order status to ${nextStatus.replace(/_/g, ' ')}`);
       }
     }
-  }, [updateOrderStatus, tracking, handleDeliveryComplete, ttsEnabled, speakAIInsight]);
+  }, [updateOrderStatus, requestDeliveryOtp, activeOrder?.deliveryOtp, verifyDeliveryOtp, ttsEnabled, speakAIInsight]);
 
   const riderVerifyOtp = useCallback((enteredOtp: string): boolean => {
-    const expectedOtp = activeOrder?.deliveryOtp || '8553';
-    if (enteredOtp.trim() === expectedOtp.trim() || enteredOtp.trim() === '8553' || enteredOtp.trim() === '4829') {
-      riderAdvanceWorkflowStage('DELIVERED');
-      return true;
-    }
-    return false;
-  }, [activeOrder, riderAdvanceWorkflowStage]);
+    const result = verifyDeliveryOtp(enteredOtp);
+    return result.success;
+  }, [verifyDeliveryOtp]);
 
   // Games Hub
   const openGame = useCallback((gameName: 'Delivery Rush' | 'Catch the Food' | 'Guess Your ETA') => {
@@ -1082,6 +1176,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ttsEnabled,
         setTtsEnabled,
         isDbConnected,
+        isRiderArrived,
+        otpRequested,
+        isWaitingForOtp,
+        isOtpModalOpen,
+        setIsOtpModalOpen,
+        requestDeliveryOtp,
+        verifyDeliveryOtp,
         userRole,
         setUserRole,
         activeGame,
