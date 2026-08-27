@@ -7,7 +7,7 @@ import {
   PackageCheck,
   Bike,
   MapPin,
-  ShieldCheck,
+  PartyPopper,
   Sparkles
 } from 'lucide-react';
 
@@ -24,25 +24,20 @@ export const DeliveryTimeline: React.FC<{ className?: string }> = ({ className =
   const { tracking, activeOrder } = useApp();
 
   const progress = tracking?.driverPosition?.progress ?? 32;
-  const etaMinutes = tracking?.etaMinutes ?? 18;
+  const etaMinutes = tracking?.etaMinutes ?? 28;
+  const etaRangeMin = Math.max(12, Math.round(etaMinutes * 0.9));
+  const etaRangeMax = Math.max(etaRangeMin + 4, Math.round(etaMinutes * 1.15));
 
-  // Derive active stage dynamically from progress
+  // Derive 6 standard stages based on progress:
+  // 0: Order Confirmed
+  // 1: Restaurant Preparing
+  // 2: Food Ready
+  // 3: Rider Picked Up
+  // 4: On the Way
+  // 5: Delivered
   const getStepStatus = (stepIndex: number): 'completed' | 'current' | 'upcoming' => {
-    // 0: Confirmed (always completed for active tracking)
-    // 1: Preparing (completed if progress >= 5)
-    // 2: Food Ready (completed if progress >= 15)
-    // 3: Picked Up (completed if progress >= 25)
-    // 4: On The Way (current if 25 <= progress < 90)
-    // 5: Arriving Soon (current if progress >= 90 && progress < 100)
-    // 6: Delivered (completed if progress >= 100)
-
     if (progress >= 100) {
-      return stepIndex === 6 ? 'completed' : 'completed';
-    }
-    if (progress >= 90) {
-      if (stepIndex < 5) return 'completed';
-      if (stepIndex === 5) return 'current';
-      return 'upcoming';
+      return stepIndex === 5 ? 'current' : 'completed';
     }
     if (progress >= 25) {
       if (stepIndex < 4) return 'completed';
@@ -54,9 +49,14 @@ export const DeliveryTimeline: React.FC<{ className?: string }> = ({ className =
       if (stepIndex === 3) return 'current';
       return 'upcoming';
     }
-    if (progress >= 5) {
+    if (progress >= 8) {
       if (stepIndex < 2) return 'completed';
       if (stepIndex === 2) return 'current';
+      return 'upcoming';
+    }
+    if (progress >= 3) {
+      if (stepIndex < 1) return 'completed';
+      if (stepIndex === 1) return 'current';
       return 'upcoming';
     }
     return stepIndex === 0 ? 'current' : 'upcoming';
@@ -73,53 +73,48 @@ export const DeliveryTimeline: React.FC<{ className?: string }> = ({ className =
     },
     {
       id: 'step_preparing',
-      title: 'Food Preparing',
-      subtitle: 'Chef grilling items fresh',
+      title: 'Restaurant Preparing',
+      subtitle: 'Chef cooking fresh items',
       time: '4:18 PM',
       status: getStepStatus(1),
       icon: ChefHat
     },
     {
       id: 'step_ready',
-      title: 'Packed & Ready',
-      subtitle: 'Tamper-evident sealed',
+      title: 'Food Ready',
+      subtitle: 'Tamper-sealed & packed',
       time: '4:21 PM',
       status: getStepStatus(2),
       icon: PackageCheck
     },
     {
       id: 'step_picked_up',
-      title: 'Picked Up',
-      subtitle: 'Rahul scanned package',
-      time: '4:23 PM',
+      title: 'Rider Picked Up',
+      subtitle: 'Rahul scanned bag OTP',
+      time: '4:24 PM',
       status: getStepStatus(3),
       icon: Bike
     },
     {
       id: 'step_on_way',
       title: 'On the Way',
-      subtitle: `Speed ~${tracking?.speedKmh || 28} km/h • Knowledge City corridor`,
-      time: `~${etaMinutes}m ETA`,
+      subtitle: `Speed ~${tracking?.speedKmh || 28} km/h • Knowledge Corridor`,
+      time: `${etaRangeMin}–${etaRangeMax}m ETA`,
       status: getStepStatus(4),
-      icon: Bike
-    },
-    {
-      id: 'step_arriving',
-      title: 'Arriving Soon',
-      subtitle: 'Approaching Financial District',
-      time: 'Next milestone',
-      status: getStepStatus(5),
       icon: MapPin
     },
     {
       id: 'step_delivered',
-      title: 'Handover & OTP',
-      subtitle: 'PIN: 8553 verification',
+      title: 'Delivered',
+      subtitle: 'Handover at doorstep PIN: 8553',
       time: 'Destination',
-      status: getStepStatus(6),
-      icon: ShieldCheck
+      status: getStepStatus(5),
+      icon: PartyPopper
     }
   ];
+
+  const currentStepIdx = steps.findIndex(s => s.status === 'current');
+  const activeStageNumber = currentStepIdx !== -1 ? currentStepIdx + 1 : (progress >= 100 ? 6 : 5);
 
   return (
     <div className={`overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 sm:p-6 shadow-xs ${className}`}>
@@ -132,126 +127,109 @@ export const DeliveryTimeline: React.FC<{ className?: string }> = ({ className =
           </div>
           <div>
             <h3 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
-              <span>Live Delivery Timeline</span>
+              <span>Live Order Tracking Timeline</span>
               <span className="flex h-2 w-2 rounded-full bg-cyan-600 animate-ping" />
             </h3>
             <p className="text-xs text-slate-500">
-              Real-time milestone progression synchronized with rider telemetry
+              6-Stage progression synchronized with courier telemetry
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <span className="rounded-full bg-cyan-50 px-3 py-1 text-xs font-bold text-cyan-800 border border-cyan-200">
-            Stage {steps.findIndex(s => s.status === 'current') + 1} of 7
+            Stage {activeStageNumber} of 6: {steps[currentStepIdx]?.title || 'On the Way'}
           </span>
         </div>
       </div>
 
       {/* Desktop Horizontal Stepper */}
-      <div className="hidden lg:block pt-6 pb-2">
+      <div className="hidden md:block pt-6 pb-2">
         <div className="relative flex items-center justify-between">
           
-          {/* Background Connecting Track */}
+          {/* Background Track */}
           <div className="absolute top-1/2 left-0 h-1 w-full -translate-y-1/2 bg-slate-100 rounded-full z-0" />
           
           {/* Progress Filled Track */}
           <div
             className="absolute top-1/2 left-0 h-1 -translate-y-1/2 bg-cyan-600 rounded-full transition-all duration-500 z-0"
-            style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+            style={{ width: `${Math.min(100, Math.max(0, (activeStageNumber - 1) * 20))}%` }}
           />
 
           {/* Stepper Nodes */}
           {steps.map((step, idx) => {
+            const Icon = step.icon;
             const isCompleted = step.status === 'completed';
             const isCurrent = step.status === 'current';
-            const Icon = step.icon;
 
             return (
-              <div key={step.id} className="relative z-10 flex flex-col items-center group max-w-[120px] text-center">
+              <div key={step.id} className="relative z-10 flex flex-col items-center text-center">
                 
-                {/* Step Circle */}
+                {/* Circle Indicator */}
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all duration-300 ${
                     isCompleted
-                      ? 'border-cyan-600 bg-cyan-600 text-white shadow-sm shadow-cyan-600/30'
+                      ? 'border-cyan-600 bg-cyan-600 text-white shadow-xs'
                       : isCurrent
-                      ? 'border-cyan-600 bg-white text-cyan-600 shadow-md ring-4 ring-cyan-100 animate-pulse'
-                      : 'border-slate-300 bg-slate-50 text-slate-400'
+                      ? 'border-cyan-600 bg-white text-cyan-600 ring-4 ring-cyan-100 scale-110 shadow-sm'
+                      : 'border-slate-200 bg-white text-slate-400'
                   }`}
                 >
                   <Icon className="h-4 w-4" />
                 </div>
 
-                {/* Step Titles & Time */}
-                <div className="mt-2.5 space-y-0.5">
-                  <div className={`text-xs font-bold leading-tight ${isCurrent ? 'text-cyan-700' : isCompleted ? 'text-slate-900' : 'text-slate-400'}`}>
+                {/* Text Labels */}
+                <div className="mt-2 max-w-[100px]">
+                  <span
+                    className={`block text-[11px] font-bold leading-tight ${
+                      isCurrent
+                        ? 'text-cyan-900 font-black'
+                        : isCompleted
+                        ? 'text-slate-800'
+                        : 'text-slate-400'
+                    }`}
+                  >
                     {step.title}
-                  </div>
-                  <div className="text-[10px] text-slate-500 font-medium truncate max-w-[110px]">
-                    {step.subtitle}
-                  </div>
-                  <div className="text-[10px] font-mono font-bold text-slate-400">
+                  </span>
+                  <span className="block text-[10px] text-slate-500 font-mono mt-0.5">
                     {step.time}
-                  </div>
+                  </span>
                 </div>
-
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Mobile / Tablet Vertical Timeline */}
-      <div className="lg:hidden space-y-3 pt-4">
+      {/* Mobile Vertical Stepper */}
+      <div className="md:hidden space-y-4 pt-4">
         {steps.map((step, idx) => {
+          const Icon = step.icon;
           const isCompleted = step.status === 'completed';
           const isCurrent = step.status === 'current';
-          const isUpcoming = step.status === 'upcoming';
-          const Icon = step.icon;
 
           return (
-            <div key={step.id} className="relative flex items-start gap-3 pl-1">
-              
-              {/* Vertical line connecting nodes */}
-              {idx < steps.length - 1 && (
-                <div
-                  className={`absolute left-[18px] top-8 h-full w-0.5 -translate-x-1/2 ${
-                    isCompleted ? 'bg-cyan-600' : 'bg-slate-200'
-                  }`}
-                />
-              )}
-
-              {/* Node Circle */}
+            <div key={step.id} className="flex items-start gap-3.5">
               <div
-                className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-all ${
+                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 shrink-0 ${
                   isCompleted
-                    ? 'border-cyan-600 bg-cyan-600 text-white shadow-xs'
+                    ? 'border-cyan-600 bg-cyan-600 text-white'
                     : isCurrent
-                    ? 'border-cyan-600 bg-white text-cyan-600 ring-4 ring-cyan-100 animate-pulse'
-                    : 'border-slate-300 bg-slate-50 text-slate-400'
+                    ? 'border-cyan-600 bg-white text-cyan-600 ring-4 ring-cyan-100'
+                    : 'border-slate-200 bg-white text-slate-400'
                 }`}
               >
                 <Icon className="h-3.5 w-3.5" />
               </div>
-
-              {/* Content */}
-              <div className="flex-1 rounded-xl p-2 bg-slate-50/70 border border-slate-100 flex items-center justify-between">
-                <div>
-                  <div className={`text-xs font-bold ${isCurrent ? 'text-cyan-700' : isCompleted ? 'text-slate-900' : 'text-slate-400'}`}>
+              <div className="flex-1 pb-2 border-b border-slate-100">
+                <div className="flex items-center justify-between">
+                  <span className={`text-xs font-bold ${isCurrent ? 'text-cyan-900' : 'text-slate-800'}`}>
                     {step.title}
-                  </div>
-                  <div className="text-[11px] text-slate-500">{step.subtitle}</div>
-                </div>
-                <div className="text-right">
-                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-md ${
-                    isCurrent ? 'bg-cyan-100 text-cyan-800' : 'text-slate-400'
-                  }`}>
-                    {step.time}
                   </span>
+                  <span className="text-[10px] font-mono text-slate-400">{step.time}</span>
                 </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">{step.subtitle}</p>
               </div>
-
             </div>
           );
         })}

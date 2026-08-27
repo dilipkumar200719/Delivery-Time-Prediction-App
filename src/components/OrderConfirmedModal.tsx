@@ -72,24 +72,24 @@ export const OrderConfirmedModal: React.FC = () => {
           <div className="flex items-center justify-between text-xs border-b border-cyan-100 pb-2.5">
             <span className="font-bold text-cyan-900 flex items-center gap-1.5">
               <BrainCircuit className="h-4 w-4 text-cyan-600" />
-              AI PREDICTION
+              AI DELIVERY PREDICTION
             </span>
             <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-              <ShieldCheck className="h-3 w-3" /> Confidence {confidence}%
+              <ShieldCheck className="h-3 w-3" /> Confidence {confidence}% 🟢
             </span>
           </div>
 
           <div className="flex items-center justify-between">
             <div className="text-left">
-              <span className="text-xs text-slate-500">Estimated Arrival Time</span>
+              <span className="text-xs text-slate-500">Estimated Delivery Window</span>
               <div className="text-3xl font-black text-slate-900 mt-0.5">
-                {etaMinutes} <span className="text-base font-semibold text-slate-500">minutes</span>
+                {Math.max(12, Math.round(etaMinutes * 0.9))}–{Math.max(16, Math.round(etaMinutes * 1.15))} <span className="text-base font-semibold text-slate-500">minutes</span>
               </div>
             </div>
             <div className="text-right">
-              <span className="text-xs text-slate-500">Route Condition</span>
+              <span className="text-xs text-slate-500">Payment Status</span>
               <div className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg mt-0.5 border border-emerald-200">
-                Optimal Corridor ⭐
+                ₹{orderConfirmedModal.totalAmountRupees || 410} Paid via UPI ✅
               </div>
             </div>
           </div>

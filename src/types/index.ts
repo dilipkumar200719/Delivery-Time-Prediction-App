@@ -14,6 +14,7 @@ export type AppTab =
   | 'ORDERS' 
   | 'TWIN' 
   | 'TRACKING' 
+  | 'INSIGHTS'
   | 'GAMES' 
   | 'PULSE' 
   | 'ROUTES' 

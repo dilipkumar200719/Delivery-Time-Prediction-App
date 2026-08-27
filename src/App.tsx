@@ -26,6 +26,9 @@ import { AuthModal } from './components/AuthModal';
 import { DeliveryCompleteReport } from './components/DeliveryCompleteReport';
 import { CityDeliveryPulse } from './components/CityDeliveryPulse';
 import { LocationSelectorModal } from './components/LocationSelectorModal';
+import { AIAssistantChatbot } from './components/AIAssistantChatbot';
+import { AIInsightsPanel } from './components/AIInsightsPanel';
+import { AIModelPerformanceDashboard } from './components/AIModelPerformanceDashboard';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppTab } from './types';
 
@@ -74,6 +77,7 @@ const MainDashboard: React.FC = () => {
       if (target === 'restaurants') setActiveTab('RESTAURANTS');
       else if (target === 'orders' || target === 'my-orders') setActiveTab('ORDERS');
       else if (target === 'tracking' || target === 'twin' || target === 'digital-twin') setActiveTab('TWIN');
+      else if (target === 'insights' || target === 'benchmarks' || target === 'ai') setActiveTab('INSIGHTS');
       else if (target === 'games' || target === 'play') setActiveTab('GAMES');
       else if (target === 'pulse' || target === 'city-pulse') setActiveTab('PULSE');
       else if (target === 'routes' || target === 'route-battle') setActiveTab('ROUTES');
@@ -112,6 +116,7 @@ const MainDashboard: React.FC = () => {
       ORDERS: 'orders',
       TWIN: 'tracking',
       TRACKING: 'tracking',
+      INSIGHTS: 'insights',
       GAMES: 'games',
       PULSE: 'city-pulse',
       ROUTES: 'routes',
@@ -349,6 +354,18 @@ const MainDashboard: React.FC = () => {
         )}
 
         {/* ========================================================================= */}
+        {/* ROUTE: AI INSIGHTS & BENCHMARKS */}
+        {/* ========================================================================= */}
+        {activeTab === 'INSIGHTS' && (
+          <ErrorBoundary fallbackTitle="AI Insights Recovery">
+            <div className="space-y-6 animate-in fade-in duration-300">
+              <AIInsightsPanel />
+              <AIModelPerformanceDashboard />
+            </div>
+          </ErrorBoundary>
+        )}
+
+        {/* ========================================================================= */}
         {/* ROUTE 6: CITY DELIVERY PULSE */}
         {/* ========================================================================= */}
         {activeTab === 'PULSE' && (
@@ -558,6 +575,9 @@ const MainDashboard: React.FC = () => {
       <AdminDashboard />
       <AuthModal />
       <DeliveryCompleteReport />
+
+      {/* Global AI Assistant Floating Chatbot */}
+      <AIAssistantChatbot />
 
       {/* Mini Game Overlays */}
       {activeGame === 'Delivery Rush' && <DeliveryRushGame />}

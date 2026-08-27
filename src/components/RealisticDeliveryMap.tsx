@@ -440,12 +440,13 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
     });
 
     if (!courierMarkerRef.current) {
-      const marker = L.marker([lat, lng], { icon: courierIcon }).addTo(map);
+      const marker = L.marker([lat, lng], { icon: courierIcon, zIndexOffset: 2500 }).addTo(map);
       marker.on('click', () => setIsRiderCardOpen(true));
       courierMarkerRef.current = marker;
     } else {
       courierMarkerRef.current.setLatLng([lat, lng]);
       courierMarkerRef.current.setIcon(courierIcon);
+      courierMarkerRef.current.setZIndexOffset(2500);
     }
 
     // Auto-follow rider when enabled

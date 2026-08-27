@@ -18,6 +18,7 @@ import {
   Sliders,
   ChevronDown,
   TrendingUp,
+  Sparkles,
   X
 } from 'lucide-react';
 import { AppTab } from '../types';
@@ -101,6 +102,14 @@ export const Navbar: React.FC = () => {
       badge: 'Live',
       activeStyle: 'bg-cyan-50 text-cyan-950 border-cyan-300 font-black shadow-2xs',
       activeIconColor: 'text-cyan-600'
+    },
+    {
+      tab: 'INSIGHTS',
+      label: 'AI Insights',
+      icon: Sparkles,
+      badge: 'AI',
+      activeStyle: 'bg-indigo-50 text-indigo-950 border-indigo-300 font-black shadow-2xs',
+      activeIconColor: 'text-indigo-600'
     },
     {
       tab: 'GAMES',
