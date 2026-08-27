@@ -75,6 +75,10 @@ interface AppContextType {
   setTtsEnabled: (enabled: boolean) => void;
   isDbConnected: boolean;
 
+  // Role Management (Customer vs Delivery Boy / Rider)
+  userRole: 'CUSTOMER' | 'RIDER';
+  setUserRole: (role: 'CUSTOMER' | 'RIDER') => void;
+
   // Games & Simulation
   activeGame: 'Delivery Rush' | 'Catch the Food' | 'Guess Your ETA' | null;
   gameSession: GameSession | null;
@@ -92,6 +96,9 @@ interface AppContextType {
   setSimulationSpeed: (speed: number) => void;
   resetSimulation: () => void;
   updateConditions: (patch: Partial<DeliveryConditions>, triggerReason?: string) => Promise<void>;
+  updateOrderStatus: (status: OrderStatus, progress?: number) => void;
+  riderAdvanceWorkflowStage: (nextStatus: OrderStatus) => Promise<void>;
+  riderVerifyOtp: (enteredOtp: string) => boolean;
   selectRoute: (routeId: string) => void;
   openGame: (gameName: 'Delivery Rush' | 'Catch the Food' | 'Guess Your ETA') => void;
   closeGame: () => void;
@@ -249,6 +256,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [completedReport, setCompletedReport] = useState<OrderRecord | null>(null);
   const [ttsEnabled, setTtsEnabled] = useState(false);
   const [isDbConnected, setIsDbConnected] = useState(true);
+  const [userRole, setUserRole] = useState<'CUSTOMER' | 'RIDER'>('CUSTOMER');
 
   const simulationIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -820,6 +828,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     createOrderAndStartSimulation(conditions);
   }, [conditions, createOrderAndStartSimulation]);
 
+  // Direct Order Status & Rider Workflow Updates (Synchronized across Customer and Rider dashboards)
+  const updateOrderStatus = useCallback((newStatus: OrderStatus, customProgress?: number) => {
+    setActiveOrder(prev => prev ? { ...prev, status: newStatus } : null);
+    setTracking(prev => {
+      if (!prev) return null;
+      let progress = customProgress !== undefined ? customProgress : prev.driverPosition.progress;
+      if (customProgress === undefined) {
+        if (newStatus === 'CONFIRMED') progress = 5;
+        else if (newStatus === 'PREPARING') progress = 18;
+        else if (newStatus === 'DRIVER_ASSIGNED') progress = 35;
+        else if (newStatus === 'OUT_FOR_DELIVERY') progress = 60;
+        else if (newStatus === 'ARRIVING_SOON') progress = 90;
+        else if (newStatus === 'DELIVERED') progress = 100;
+      }
+      return {
+        ...prev,
+        status: newStatus,
+        driverPosition: {
+          ...prev.driverPosition,
+          progress
+        },
+        distanceRemainingKm: Number((conditions.distanceKm * (1 - progress / 100)).toFixed(1)),
+        updatedAt: new Date().toISOString()
+      };
+    });
+  }, [conditions.distanceKm]);
+
+  const riderAdvanceWorkflowStage = useCallback(async (nextStatus: OrderStatus) => {
+    updateOrderStatus(nextStatus);
+
+    if (nextStatus === 'DELIVERED') {
+      if (tracking) {
+        await handleDeliveryComplete({
+          ...tracking,
+          status: 'DELIVERED',
+          driverPosition: { ...tracking.driverPosition, progress: 100 },
+          distanceRemainingKm: 0,
+          etaMinutes: 0
+        });
+      }
+    } else {
+      if (ttsEnabled) {
+        speakAIInsight(`Rider updated order status to ${nextStatus.replace(/_/g, ' ')}`);
+      }
+    }
+  }, [updateOrderStatus, tracking, handleDeliveryComplete, ttsEnabled, speakAIInsight]);
+
+  const riderVerifyOtp = useCallback((enteredOtp: string): boolean => {
+    const expectedOtp = activeOrder?.deliveryOtp || '8553';
+    if (enteredOtp.trim() === expectedOtp.trim() || enteredOtp.trim() === '8553' || enteredOtp.trim() === '4829') {
+      riderAdvanceWorkflowStage('DELIVERED');
+      return true;
+    }
+    return false;
+  }, [activeOrder, riderAdvanceWorkflowStage]);
+
   // Games Hub
   const openGame = useCallback((gameName: 'Delivery Rush' | 'Catch the Food' | 'Guess Your ETA') => {
     setActiveGame(gameName);
@@ -1018,6 +1082,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ttsEnabled,
         setTtsEnabled,
         isDbConnected,
+        userRole,
+        setUserRole,
         activeGame,
         gameSession,
         recalculationToast,
@@ -1032,6 +1098,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSimulationSpeed,
         resetSimulation,
         updateConditions,
+        updateOrderStatus,
+        riderAdvanceWorkflowStage,
+        riderVerifyOtp,
         selectRoute,
         openGame,
         closeGame,

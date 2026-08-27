@@ -29,6 +29,9 @@ import { LocationSelectorModal } from './components/LocationSelectorModal';
 import { AIAssistantChatbot } from './components/AIAssistantChatbot';
 import { AIInsightsPanel } from './components/AIInsightsPanel';
 import { AIModelPerformanceDashboard } from './components/AIModelPerformanceDashboard';
+import { RiderDashboard } from './components/RiderDashboard';
+import { CustomerDashboard } from './components/CustomerDashboard';
+import { RoleSelectorBar } from './components/RoleSelectorBar';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppTab } from './types';
 
@@ -77,6 +80,7 @@ const MainDashboard: React.FC = () => {
       if (target === 'restaurants') setActiveTab('RESTAURANTS');
       else if (target === 'orders' || target === 'my-orders') setActiveTab('ORDERS');
       else if (target === 'tracking' || target === 'twin' || target === 'digital-twin') setActiveTab('TWIN');
+      else if (target === 'rider' || target === 'delivery-boy' || target === 'courier') setActiveTab('RIDER');
       else if (target === 'insights' || target === 'benchmarks' || target === 'ai') setActiveTab('INSIGHTS');
       else if (target === 'games' || target === 'play') setActiveTab('GAMES');
       else if (target === 'pulse' || target === 'city-pulse') setActiveTab('PULSE');
@@ -116,6 +120,7 @@ const MainDashboard: React.FC = () => {
       ORDERS: 'orders',
       TWIN: 'tracking',
       TRACKING: 'tracking',
+      RIDER: 'rider',
       INSIGHTS: 'insights',
       GAMES: 'games',
       PULSE: 'city-pulse',
@@ -217,6 +222,9 @@ const MainDashboard: React.FC = () => {
         {activeTab === 'HOME' && (
           <ErrorBoundary fallbackTitle="Home View Recovery">
             <div className="space-y-8 animate-in fade-in duration-300">
+              {/* Role Selection / Navigation Section at the Top */}
+              <RoleSelectorBar />
+
               <CustomerHero />
               
               {/* Standout AI Delivery Prediction Card (Live Intelligence) */}
@@ -270,6 +278,15 @@ const MainDashboard: React.FC = () => {
         )}
 
         {/* ========================================================================= */}
+        {/* ROUTE: RIDER DASHBOARD (DELIVERY BOY / RIDER EXPERIENCE) */}
+        {/* ========================================================================= */}
+        {activeTab === 'RIDER' && (
+          <ErrorBoundary fallbackTitle="Rider Dashboard Recovery">
+            <RiderDashboard />
+          </ErrorBoundary>
+        )}
+
+        {/* ========================================================================= */}
         {/* ROUTE 2: RESTAURANTS */}
         {/* ========================================================================= */}
         {activeTab === 'RESTAURANTS' && (
@@ -292,29 +309,46 @@ const MainDashboard: React.FC = () => {
         )}
 
         {/* ========================================================================= */}
-        {/* ROUTE 4: TRACKING / DIGITAL TWIN */}
+        {/* ROUTE 4: TRACKING / CUSTOMER DASHBOARD / DIGITAL TWIN */}
         {/* ========================================================================= */}
         {isTrackingActive && (
           <ErrorBoundary fallbackTitle="AI Tracking View Recovery">
-            <div className="space-y-6 animate-in fade-in duration-300">
-              {/* Main Autonomous Digital Twin Simulator */}
-              <DeliveryDigitalTwin />
+            <div className="space-y-8 animate-in fade-in duration-300">
+              {/* Comprehensive Dedicated Customer Dashboard */}
+              <CustomerDashboard />
 
-              {/* 2-Column Section: AI Route Battle & Decision Room */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <div className="lg:col-span-7">
-                  <RouteBattle />
+              {/* Advanced Autonomous Digital Twin Simulator */}
+              <div className="pt-6 border-t border-slate-200 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                      <BrainCircuit className="h-5 w-5 text-cyan-600" />
+                      <span>Deep Physics &amp; Corridor Simulator</span>
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Multi-corridor telemetry and chokepoint simulation engine
+                    </p>
+                  </div>
                 </div>
-                <div className="lg:col-span-5">
-                  <DecisionRoom />
+
+                <DeliveryDigitalTwin />
+
+                {/* 2-Column Section: AI Route Battle & Decision Room */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  <div className="lg:col-span-7">
+                    <RouteBattle />
+                  </div>
+                  <div className="lg:col-span-5">
+                    <DecisionRoom />
+                  </div>
                 </div>
+
+                {/* Delivery Health Index */}
+                <DeliveryHealthWidget />
+
+                {/* Play While Waiting Gamification Hub */}
+                <PlayWhileWaiting />
               </div>
-
-              {/* Delivery Health Index */}
-              <DeliveryHealthWidget />
-
-              {/* Play While Waiting Gamification Hub */}
-              <PlayWhileWaiting />
             </div>
           </ErrorBoundary>
         )}

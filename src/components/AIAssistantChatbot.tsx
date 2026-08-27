@@ -160,7 +160,12 @@ export const AIAssistantChatbot: React.FC = () => {
       return `👨‍🍳 **KITCHEN PREPARATION REPORT**\n\n• Restaurant: **${restaurantName}**\n• Preparation Duration: **${conditions.restaurantPrepTime || 12} minutes**\n• Food Packaging: Tamper-proof thermal bag\n• Handover State: Food is packed and en route with Rahul.`;
     }
 
-    // 14. Explain ETA / How was prediction calculated
+    // 14. Rider mission / delivery boy queries
+    if (q.includes('rider mode') || q.includes('rider earnings') || q.includes('trip pay') || q.includes('delivery boy') || q.includes('dispatch')) {
+      return `🛵 **RIDER DISPATCH TELEMETRY & TRIP INTEL**\n\n• Active Rider: **Rahul Sharma (RD-9042)**\n• Assigned Mission: **#${activeOrder?.id || 'ORD-8553'}**\n• Trip Payout: **₹90.00** (₹45 Base + ₹25 Surge + ₹20 Tip)\n• Recommended Route: **Flyover Bypass** (saves 4.2 mins)\n• Handover PIN: **8553**\n• Dispatch SOS Hotline: **1800-PREDICT-RIDER**`;
+    }
+
+    // 15. Explain ETA / How was prediction calculated
     if (q.includes('explain') || q.includes('how was') || q.includes('factors') || q.includes('model') || q.includes('calculation')) {
       return `🧠 **PREDICTEATS AI PREDICTION DECOMPOSITION**\n\n1. 👨‍🍳 **Food Preparation:** ${conditions.restaurantPrepTime || 12} min (Kitchen model)\n2. 🛵 **Rider Pickup & Dispatch:** 4 min (Courier sync)\n3. 📍 **Road Transit Time:** 9 min (${remainingDist} km route)\n4. 🚦 **Traffic Adjustment:** +${conditions.trafficLevel === 'SEVERE' ? '8' : conditions.trafficLevel === 'HIGH' ? '5' : '2'} min (${conditions.trafficLevel})\n5. 🌦️ **Weather Impact:** +${conditions.weatherCondition === 'CLEAR' ? '0' : '3'} min (${conditions.weatherCondition.replace('_', ' ')})\n\n🎯 **Final Predicted Range:** **${etaRangeMin}–${etaRangeMax} min** with **${Math.round((prediction?.confidence ?? 0.92) * 100)}% Confidence**.`;
     }

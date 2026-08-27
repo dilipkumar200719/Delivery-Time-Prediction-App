@@ -22,7 +22,8 @@ export type AppTab =
   | 'REWARDS' 
   | 'FUTURE' 
   | 'PROFILE' 
-  | 'CHECKOUT';
+  | 'CHECKOUT'
+  | 'RIDER';
 
 export interface CartItem {
   id: string;

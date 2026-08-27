@@ -19,6 +19,7 @@ import {
   ChevronDown,
   TrendingUp,
   Sparkles,
+  Bike,
   X
 } from 'lucide-react';
 import { AppTab } from '../types';
@@ -39,7 +40,9 @@ export const Navbar: React.FC = () => {
     setTtsEnabled,
     searchQuery,
     setSearchQuery,
-    isDbConnected
+    isDbConnected,
+    userRole,
+    setUserRole
   } = useApp();
 
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -124,6 +127,14 @@ export const Navbar: React.FC = () => {
       icon: Activity,
       activeStyle: 'bg-emerald-50 text-emerald-950 border-emerald-200 font-black shadow-2xs',
       activeIconColor: 'text-emerald-600'
+    },
+    {
+      tab: 'RIDER',
+      label: 'Rider View',
+      icon: Bike,
+      badge: 'Rider',
+      activeStyle: 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-cyan-400 font-black shadow-md shadow-cyan-600/20',
+      activeIconColor: 'text-cyan-200'
     }
   ];
 
@@ -258,6 +269,40 @@ export const Navbar: React.FC = () => {
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Quick Role Switcher Pill in Header */}
+          <div className="hidden md:flex items-center rounded-xl bg-slate-100 p-0.5 border border-slate-200 shadow-2xs">
+            <button
+              id="header-role-customer-btn"
+              onClick={() => {
+                setUserRole('CUSTOMER');
+                if (activeTab === 'RIDER') setActiveTab('HOME');
+              }}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                userRole === 'CUSTOMER' && activeTab !== 'RIDER'
+                  ? 'bg-white text-orange-950 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <User className="h-3 w-3 text-orange-600" />
+              <span>Customer</span>
+            </button>
+            <button
+              id="header-role-rider-btn"
+              onClick={() => {
+                setUserRole('RIDER');
+                setActiveTab('RIDER');
+              }}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                userRole === 'RIDER' || activeTab === 'RIDER'
+                  ? 'bg-slate-900 text-cyan-300 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <Bike className="h-3 w-3 text-cyan-400" />
+              <span>Rider</span>
+            </button>
           </div>
 
           {/* Delivery Points Wallet Pill */}
