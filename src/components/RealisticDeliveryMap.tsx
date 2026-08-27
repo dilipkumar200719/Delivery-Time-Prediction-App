@@ -764,7 +764,7 @@ export const RealisticDeliveryMap: React.FC<RealisticDeliveryMapProps> = ({
                 <span className="text-xs text-slate-600 font-medium">Share with Rahul at delivery</span>
               </div>
               <span className="text-lg font-mono font-black text-cyan-800 bg-cyan-100 px-3 py-1 rounded-xl border border-cyan-300">
-                4829
+                {activeOrder?.deliveryOtp || '8553'}
               </span>
             </div>
 

@@ -143,6 +143,28 @@ export const DeliveryTimeline: React.FC<{ className?: string }> = ({ className =
         </div>
       </div>
 
+      {/* Active Stage Live ETA Spotlight Callout */}
+      <div className="rounded-2xl border border-cyan-200/80 bg-gradient-to-r from-cyan-50/90 via-sky-50/50 to-white p-3.5 sm:p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-3 w-3 rounded-full bg-emerald-500 animate-pulse" />
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 block">
+                CURRENT STAGE: {steps[currentStepIdx]?.title || 'On the Way'}
+              </span>
+              <div className="text-xs sm:text-sm font-bold text-slate-900 mt-0.5">
+                Current ETA: <span className="font-mono text-cyan-950 font-black">{etaRangeMin}–{etaRangeMax} min</span> • Confidence: <span className="text-emerald-700 font-black">92%</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+            <Clock className="h-3.5 w-3.5 text-cyan-600" />
+            <span>Expected arrival: <strong className="font-mono text-slate-950 font-black">{new Date(Date.now() + etaMinutes * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong></span>
+          </div>
+        </div>
+      </div>
+
       {/* Desktop Horizontal Stepper */}
       <div className="hidden md:block pt-6 pb-2">
         <div className="relative flex items-center justify-between">

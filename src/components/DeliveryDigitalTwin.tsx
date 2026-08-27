@@ -30,6 +30,8 @@ import { DeliveryIntelligenceCard } from './DeliveryIntelligenceCard';
 import { DeliveryAlertsFeed } from './DeliveryAlertsFeed';
 import { PaymentDetailsCard } from './PaymentDetailsCard';
 import { AIInsightsPanel } from './AIInsightsPanel';
+import { RouteBattle } from './RouteBattle';
+import { AIModelPerformanceDashboard } from './AIModelPerformanceDashboard';
 
 export const DeliveryDigitalTwin: React.FC = () => {
   const {
@@ -167,14 +169,14 @@ export const DeliveryDigitalTwin: React.FC = () => {
       {/* 2. Structured Logistics Dashboard Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Left Column: Delivery Partner Card + Smart Alerts + Payment Details */}
+        {/* Left Column: Delivery Partner Card + Smart Alerts + Payment & Order Details */}
         <div className="lg:col-span-5 space-y-6">
           <DeliveryPartnerCard />
           <DeliveryAlertsFeed />
           <PaymentDetailsCard />
         </div>
 
-        {/* Right Column: AI Delivery Prediction (Hero Feature) + Live Route & AI Insights */}
+        {/* Right Column: AI Delivery Prediction (Hero Feature) + What-If & AI Insights */}
         <div className="lg:col-span-7 space-y-6">
           <AIDeliveryPredictionCard />
           <AIInsightsPanel />
@@ -182,6 +184,12 @@ export const DeliveryDigitalTwin: React.FC = () => {
         </div>
 
       </div>
+
+      {/* 3. Route Intelligence & Multi-Corridor Analysis */}
+      <RouteBattle />
+
+      {/* 4. Model Performance & Validation Benchmark */}
+      <AIModelPerformanceDashboard />
 
     </div>
   );

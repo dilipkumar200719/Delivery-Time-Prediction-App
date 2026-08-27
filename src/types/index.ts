@@ -174,6 +174,7 @@ export interface OrderRecord {
   delayCompensationPoints?: number;
   pointsEarnedFromGames?: number;
   pointsEarnedFromDelivery?: number;
+  deliveryOtp?: string;
 }
 
 export interface GameSession {

@@ -277,21 +277,33 @@ export const FoodDiscoveryCarousels: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Popular Near You Carousel (Warm Orange Accent) */}
+      {/* 2. AI Picks For You (Intelligent Adaptive Recommendations) */}
       <CarouselRow
-        title="Popular Near You"
+        title="AI Picks For You"
+        subtitle={`Ranked by intelligent ETA speed, kitchen reliability, and popularity in ${cityInfo.name}`}
+        items={recommendedItems}
+        badge="🤖 Smart Ranked"
+        badgeBg="bg-indigo-100 text-indigo-950 border-indigo-300"
+        icon={Sparkles}
+        iconBg="bg-indigo-600 text-white border-indigo-700"
+        containerBg="bg-gradient-to-br from-white via-indigo-50/30 to-cyan-50/20"
+      />
+
+      {/* 3. Popular Near You Carousel (Warm Orange Accent) */}
+      <CarouselRow
+        title="Trending Near You"
         subtitle={`Top-rated kitchens and favorite dishes in ${cityInfo.name}`}
         items={popularItems}
-        badge="🔥 Trending"
+        badge="🔥 High Demand"
         badgeBg="bg-orange-100 text-orange-950 border-orange-300"
         icon={Flame}
         iconBg="bg-orange-500 text-white border-orange-600"
         containerBg="bg-gradient-to-br from-white via-orange-50/30 to-amber-50/20"
       />
 
-      {/* 3. Fast Delivery Corridor (Fresh Cyan / Emerald Accent) */}
+      {/* 4. Fast Delivery Express (<20 min) */}
       <CarouselRow
-        title="Fast Delivery Express (<20 min)"
+        title="Best for Fast Delivery (<20 min)"
         subtitle="Quick prep kitchens with open transit corridors"
         items={fastDeliveryItems}
         badge="⚡ Under 20 min"
@@ -299,18 +311,6 @@ export const FoodDiscoveryCarousels: React.FC = () => {
         icon={Zap}
         iconBg="bg-cyan-600 text-white border-cyan-700"
         containerBg="bg-gradient-to-br from-white via-cyan-50/30 to-sky-50/20"
-      />
-
-      {/* 4. AI Recommended Dishes (Soft Lavender / Purple Accent) */}
-      <CarouselRow
-        title="Chef's Specials & AI Recommendations"
-        subtitle="Selected based on fresh kitchen batches & route fluidity"
-        items={recommendedItems}
-        badge="✨ Recommended"
-        badgeBg="bg-purple-100 text-purple-950 border-purple-300"
-        icon={Sparkles}
-        iconBg="bg-purple-600 text-white border-purple-700"
-        containerBg="bg-gradient-to-br from-white via-purple-50/30 to-indigo-50/20"
       />
 
     </div>

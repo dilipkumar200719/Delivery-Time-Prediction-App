@@ -213,34 +213,36 @@ export const AIAssistantChatbot: React.FC = () => {
 
   return (
     <>
-      {/* Floating Launcher Button with Ping Status Badge */}
-      <div className="fixed bottom-5 right-5 z-40">
+      {/* Floating Launcher Button positioned in Upper-Left Area (No Netlify Badge Overlap) */}
+      <div className="fixed top-20 left-4 sm:left-6 z-40">
         {!isOpen && (
           <button
             id="btn-open-ai-chatbot"
             onClick={() => setIsOpen(true)}
-            className="group relative flex items-center gap-2.5 rounded-full bg-gradient-to-tr from-cyan-600 via-cyan-500 to-blue-600 text-white px-4 py-3 shadow-lg shadow-cyan-600/30 hover:scale-105 hover:shadow-xl transition-all"
+            className="group relative flex items-center gap-2 rounded-full bg-gradient-to-tr from-slate-950 via-cyan-950 to-slate-900 border border-cyan-500/40 text-white px-3.5 py-2 shadow-xl shadow-cyan-950/20 hover:border-cyan-400 hover:scale-105 transition-all duration-200 backdrop-blur-md"
+            title="Ask PredictEats AI Assistant"
           >
-            <div className="relative">
-              <Bot className="h-5 w-5 animate-bounce" />
-              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+            <div className="relative flex items-center justify-center">
+              <Bot className="h-4 w-4 text-cyan-400" />
+              <span className="absolute -top-1 -right-1 flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
             </div>
-            <span className="text-xs font-black tracking-wide pr-1">
-              Ask AI Assistant
+            <span className="text-xs font-black tracking-tight text-white flex items-center gap-1">
+              <span>🤖</span>
+              <span className="hidden sm:inline">AI Assistant</span>
             </span>
-            <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold font-mono">
+            <span className="rounded-full bg-cyan-500/20 px-2 py-0.5 text-[10px] font-bold font-mono text-cyan-300 border border-cyan-400/30">
               {etaRangeMin}–{etaRangeMax}m
             </span>
           </button>
         )}
       </div>
 
-      {/* Expandable Chat Window */}
+      {/* Expandable Chat Window in Upper-Left */}
       {isOpen && (
-        <div className="fixed bottom-5 right-5 z-50 w-[92vw] sm:w-[420px] h-[580px] max-h-[85vh] rounded-3xl border border-cyan-200 bg-white shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed top-20 left-4 sm:left-6 z-50 w-[94vw] sm:w-[420px] h-[580px] max-h-[82vh] rounded-3xl border border-cyan-300/80 bg-white shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
           
           {/* Header */}
           <div className="bg-gradient-to-r from-slate-950 via-cyan-950 to-slate-900 text-white p-4 flex items-center justify-between shadow-md">
