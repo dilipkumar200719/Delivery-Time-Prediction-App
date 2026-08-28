@@ -1,7 +1,22 @@
 export interface FoodItem {
   id: string;
   name: string;
-  category: 'Biryani' | 'Pizza' | 'Burgers' | 'Indian' | 'Chinese' | 'Desserts' | 'Drinks' | 'Healthy';
+  category: 
+    | 'Biryani' 
+    | 'Pizza' 
+    | 'Burgers' 
+    | 'South Indian' 
+    | 'North Indian' 
+    | 'Chinese' 
+    | 'Chicken' 
+    | 'Rolls & Wraps' 
+    | 'Desserts' 
+    | 'Beverages' 
+    | 'Healthy' 
+    | 'Fast Food' 
+    | 'Sandwiches' 
+    | 'Snacks' 
+    | 'Ice Cream';
   restaurantName: string;
   restaurantId: string;
   rating: number;
@@ -24,383 +39,608 @@ export interface Restaurant {
   avgPrepTime: number;
   distanceKm: number;
   image: string;
+  logo?: string;
   aiStatus: 'OPTIMAL' | 'BUSY' | 'MODERATE';
   discount?: string;
+  deliveryFee: number;
+  location: string;
+  featured?: boolean;
 }
+
+export const CATEGORIES_DATA: Array<{
+  id: string;
+  name: FoodItem['category'];
+  icon: string;
+  image: string;
+  tagline: string;
+}> = [
+  {
+    id: 'cat_biryani',
+    name: 'Biryani',
+    icon: '🍗',
+    image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Aromatic Handi Dum'
+  },
+  {
+    id: 'cat_pizza',
+    name: 'Pizza',
+    icon: '🍕',
+    image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Cheesy Woodfired'
+  },
+  {
+    id: 'cat_burgers',
+    name: 'Burgers',
+    icon: '🍔',
+    image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Juicy Smashed Patties'
+  },
+  {
+    id: 'cat_south_indian',
+    name: 'South Indian',
+    icon: '🥞',
+    image: 'https://images.unsplash.com/photo-1668236543090-82eba5ee5976?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Crispy Dosas & Idlis'
+  },
+  {
+    id: 'cat_north_indian',
+    name: 'North Indian',
+    icon: '🍛',
+    image: 'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Rich Curries & Naan'
+  },
+  {
+    id: 'cat_chinese',
+    name: 'Chinese',
+    icon: '🍜',
+    image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Wok Noodles & Dim Sum'
+  },
+  {
+    id: 'cat_chicken',
+    name: 'Chicken',
+    icon: '🍗',
+    image: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Crispy, Fried & Grilled'
+  },
+  {
+    id: 'cat_rolls',
+    name: 'Rolls & Wraps',
+    icon: '🌯',
+    image: 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Kathi Rolls & Frankies'
+  },
+  {
+    id: 'cat_desserts',
+    name: 'Desserts',
+    icon: '🍰',
+    image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Cakes, Waffles & Treats'
+  },
+  {
+    id: 'cat_beverages',
+    name: 'Beverages',
+    icon: '🧋',
+    image: 'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Cold Brews, Shakes & Boba'
+  },
+  {
+    id: 'cat_healthy',
+    name: 'Healthy',
+    icon: '🥗',
+    image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Salads & Protein Bowls'
+  },
+  {
+    id: 'cat_fast_food',
+    name: 'Fast Food',
+    icon: '🍟',
+    image: 'https://images.unsplash.com/photo-1576107232684-1279f3908594?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Fries, Wings & Combos'
+  },
+  {
+    id: 'cat_sandwiches',
+    name: 'Sandwiches',
+    icon: '🥪',
+    image: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Grilled Club Paninis'
+  },
+  {
+    id: 'cat_snacks',
+    name: 'Snacks',
+    icon: '🥟',
+    image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Samosas, Chaat & Bites'
+  },
+  {
+    id: 'cat_ice_cream',
+    name: 'Ice Cream',
+    icon: '🍨',
+    image: 'https://images.unsplash.com/photo-1501443762994-82bd5dace89a?w=500&auto=format&fit=crop&q=80',
+    tagline: 'Artisanal Gelato & Sundaes'
+  }
+];
 
 export const RESTAURANTS_DATA: Restaurant[] = [
   {
+    id: 'rest_kfc',
+    name: 'KFC',
+    cuisine: 'Burgers • Chicken • Fast Food',
+    rating: 4.4,
+    ratingCount: 5420,
+    avgPrepTime: 12,
+    distanceKm: 2.8,
+    image: 'https://images.unsplash.com/photo-1513639776629-7b61b0ac49cb?w=600&auto=format&fit=crop&q=80',
+    logo: 'https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?w=100&auto=format&fit=crop&q=80',
+    aiStatus: 'OPTIMAL',
+    discount: '50% OFF up to ₹100',
+    deliveryFee: 0,
+    location: 'MG Road, City Centre',
+    featured: true
+  },
+  {
+    id: 'rest_mcdonalds',
+    name: "McDonald's",
+    cuisine: 'Burgers • Beverages • Fast Food',
+    rating: 4.3,
+    ratingCount: 6890,
+    avgPrepTime: 10,
+    distanceKm: 2.3,
+    image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=600&auto=format&fit=crop&q=80',
+    logo: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=100&auto=format&fit=crop&q=80',
+    aiStatus: 'OPTIMAL',
+    discount: '40% OFF',
+    deliveryFee: 19,
+    location: 'Eluru Road Junction',
+    featured: true
+  },
+  {
+    id: 'rest_dominos',
+    name: "Domino's Pizza",
+    cuisine: 'Pizza • Sides • Pastas',
+    rating: 4.5,
+    ratingCount: 7120,
+    avgPrepTime: 14,
+    distanceKm: 3.1,
+    image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&auto=format&fit=crop&q=80',
+    logo: 'https://images.unsplash.com/photo-1604382355076-af4b0eb60143?w=100&auto=format&fit=crop&q=80',
+    aiStatus: 'OPTIMAL',
+    discount: '40% OFF up to ₹80',
+    deliveryFee: 0,
+    location: 'Governorpet High St',
+    featured: true
+  },
+  {
+    id: 'rest_paradise',
+    name: 'Paradise Biryani',
+    cuisine: 'Biryani • Hyderabadi • Mughlai',
+    rating: 4.5,
+    ratingCount: 9240,
+    avgPrepTime: 15,
+    distanceKm: 4.2,
+    image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600&auto=format&fit=crop&q=80',
+    logo: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=100&auto=format&fit=crop&q=80',
+    aiStatus: 'MODERATE',
+    discount: '20% OFF',
+    deliveryFee: 29,
+    location: 'Benz Circle Mall',
+    featured: true
+  },
+  {
+    id: 'rest_belgian_waffle',
+    name: 'The Belgian Waffle Co.',
+    cuisine: 'Desserts • Waffles • Shakes',
+    rating: 4.3,
+    ratingCount: 3410,
+    avgPrepTime: 9,
+    distanceKm: 1.9,
+    image: 'https://images.unsplash.com/photo-1562376552-0d160a2f238d?w=600&auto=format&fit=crop&q=80',
+    logo: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=100&auto=format&fit=crop&q=80',
+    aiStatus: 'OPTIMAL',
+    discount: '25% OFF',
+    deliveryFee: 0,
+    location: 'PVP Square Avenue',
+    featured: true
+  },
+  {
     id: 'rest_spice_route',
     name: 'Spice Route Kitchen',
-    cuisine: 'Biryani, North Indian, Mughlai',
+    cuisine: 'North Indian • Biryani • Mughlai',
     rating: 4.8,
-    ratingCount: 2840,
+    ratingCount: 3840,
     avgPrepTime: 14,
     distanceKm: 3.4,
     image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&auto=format&fit=crop&q=80',
     aiStatus: 'OPTIMAL',
-    discount: '20% OFF up to ₹50'
+    discount: '20% OFF up to ₹50',
+    deliveryFee: 19,
+    location: 'Ring Road Boulevard',
+    featured: true
   },
   {
     id: 'rest_artisan_crust',
     name: 'Artisan Crust Pizza Lab',
-    cuisine: 'Woodfired Pizza, Italian, Pastas',
+    cuisine: 'Woodfired Pizza • Italian • Pastas',
     rating: 4.9,
     ratingCount: 3120,
     avgPrepTime: 12,
     distanceKm: 2.8,
     image: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&auto=format&fit=crop&q=80',
     aiStatus: 'OPTIMAL',
-    discount: 'Free Delivery'
+    discount: 'Free Delivery',
+    deliveryFee: 0,
+    location: 'Autonagar Hub',
+    featured: true
   },
   {
     id: 'rest_burger_craft',
     name: 'Smash & Craft Burger Co.',
-    cuisine: 'Gourmet Burgers, Shakes, Wings',
+    cuisine: 'Gourmet Burgers • Shakes • Wings',
     rating: 4.7,
-    ratingCount: 1950,
+    ratingCount: 2950,
     avgPrepTime: 10,
     distanceKm: 4.1,
-    image: 'https://images.unsplash.com/photo-1550547660-d9450f859349?w=600&auto=format&fit=crop&q=80',
+    image: 'https://images.unsplash.com/photo-1586190848861-99aa4a171e90?w=600&auto=format&fit=crop&q=80',
     aiStatus: 'MODERATE',
-    discount: '₹40 OFF with AI points'
+    discount: '₹40 OFF with AI points',
+    deliveryFee: 25,
+    location: 'Bunder Road Express',
+    featured: true
   },
   {
     id: 'rest_dragon_wok',
     name: 'Dragon Wok Asian Bar',
-    cuisine: 'Pan-Asian, Dim Sum, Ramen',
+    cuisine: 'Pan-Asian • Dim Sum • Noodles',
     rating: 4.8,
-    ratingCount: 1680,
+    ratingCount: 2680,
     avgPrepTime: 15,
     distanceKm: 4.6,
     image: 'https://images.unsplash.com/photo-1552611052-33e04de081de?w=600&auto=format&fit=crop&q=80',
     aiStatus: 'BUSY',
-    discount: 'Flat ₹60 OFF'
+    discount: 'Flat ₹60 OFF',
+    deliveryFee: 35,
+    location: 'Governorpet East',
+    featured: false
   },
   {
     id: 'rest_green_harvest',
     name: 'Green Harvest Bowls',
-    cuisine: 'Healthy Salads, Protein Bowls, Smoothies',
+    cuisine: 'Healthy Salads • Protein Bowls • Smoothies',
     rating: 4.9,
-    ratingCount: 1240,
+    ratingCount: 1840,
     avgPrepTime: 8,
     distanceKm: 2.2,
     image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&auto=format&fit=crop&q=80',
     aiStatus: 'OPTIMAL',
-    discount: '15% OFF'
+    discount: '15% OFF',
+    deliveryFee: 0,
+    location: 'Governorpet Green Square',
+    featured: false
   }
 ];
 
 export const FOOD_CATALOG: FoodItem[] = [
-  // Biryani
+  // Biryani & Indian Main
   {
-    id: 'food_biryani_1',
-    name: 'Royal Chicken Dum Biryani',
+    id: 'food_biryani_chicken',
+    name: 'Chicken Biryani',
     category: 'Biryani',
-    restaurantName: 'Spice Route Kitchen',
-    restaurantId: 'rest_spice_route',
+    restaurantName: 'Paradise Biryani',
+    restaurantId: 'rest_paradise',
     rating: 4.8,
-    ratingCount: 1420,
+    ratingCount: 3420,
     prepTime: 14,
-    price: 249,
+    price: 199,
     isVeg: false,
     image: 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600&auto=format&fit=crop&q=80',
-    description: 'Slow-cooked aromatic basmati rice layered with tender marinated chicken, saffron, and house blend spices served with mirchi ka salan.',
+    description: 'Authentic Hyderabadi dum biryani cooked with fragrant aged basmati rice, tender chicken, saffron and spices. Served with raita & salan.',
     popular: true,
-    tags: ['Bestseller', 'Chef Special']
+    tags: ['Bestseller', 'Top Rated']
   },
   {
-    id: 'food_biryani_2',
-    name: 'Hyderabadi Paneer Tikka Biryani',
-    category: 'Biryani',
+    id: 'food_paneer_butter_masala',
+    name: 'Paneer Butter Masala',
+    category: 'North Indian',
     restaurantName: 'Spice Route Kitchen',
     restaurantId: 'rest_spice_route',
-    rating: 4.7,
-    ratingCount: 890,
+    rating: 4.8,
+    ratingCount: 2890,
     prepTime: 12,
-    price: 229,
+    price: 189,
     isVeg: true,
-    image: 'https://images.unsplash.com/photo-1589302168068-964664d93dc0?w=600&auto=format&fit=crop&q=80',
-    description: 'Charcoal-grilled smoky paneer cubes layered with saffron long grain basmati rice, caramelized onions and fresh mint.',
-    tags: ['Must Try']
-  },
-  {
-    id: 'food_biryani_3',
-    name: 'Awadhi Mutton Dum Biryani',
-    category: 'Biryani',
-    restaurantName: 'Spice Route Kitchen',
-    restaurantId: 'rest_spice_route',
-    rating: 4.9,
-    ratingCount: 2150,
-    prepTime: 16,
-    price: 349,
-    isVeg: false,
-    image: 'https://images.unsplash.com/photo-1633945274405-b6c8069047b0?w=600&auto=format&fit=crop&q=80',
-    description: 'Fragrant Lucknowi style dum cooked tender mutton, infused with rose water, kewra, and roasted royal spices.',
+    image: 'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=600&auto=format&fit=crop&q=80',
+    description: 'Velvety tomato and cashew gravy enriched with butter, aromatic dried fenugreek leaves and soft cottage cheese cubes.',
     popular: true,
-    tags: ['Signature']
+    tags: ['Must Try', 'Chef Special']
   },
-
-  // Pizza
   {
-    id: 'food_pizza_1',
-    name: 'Burrata Truffle Margherita Pizza',
+    id: 'food_pizza_margherita',
+    name: 'Margherita Pizza',
     category: 'Pizza',
-    restaurantName: 'Artisan Crust Pizza Lab',
-    restaurantId: 'rest_artisan_crust',
-    rating: 4.9,
-    ratingCount: 1680,
-    prepTime: 11,
-    price: 389,
+    restaurantName: "Domino's Pizza",
+    restaurantId: 'rest_dominos',
+    rating: 4.7,
+    ratingCount: 4120,
+    prepTime: 10,
+    price: 249,
     isVeg: true,
     image: 'https://images.unsplash.com/photo-1604382355076-af4b0eb60143?w=600&auto=format&fit=crop&q=80',
-    description: 'San Marzano tomato base, artisanal creamy burrata ball, fresh basil, extra virgin olive oil and a drizzle of white truffle oil.',
+    description: 'Classic stone-baked pizza loaded with 100% real mozzarella cheese, basil herb seasoning and rich herb tomato sauce.',
     popular: true,
-    tags: ['Gourmet', 'Top Rated']
+    tags: ['Classic Bestseller']
   },
   {
-    id: 'food_pizza_2',
-    name: 'Smoked Peri-Peri Paneer Pizza',
-    category: 'Pizza',
-    restaurantName: 'Artisan Crust Pizza Lab',
-    restaurantId: 'rest_artisan_crust',
-    rating: 4.8,
-    ratingCount: 1120,
-    prepTime: 10,
-    price: 299,
-    isVeg: true,
-    image: 'https://images.unsplash.com/photo-1513104890138-7c749659a591?w=600&auto=format&fit=crop&q=80',
-    description: 'Crispy sourdough base topped with smoky peri-peri paneer chunks, bell peppers, jalapeños, and fresh mozzarella.',
-    tags: ['Spicy Favorite']
-  },
-  {
-    id: 'food_pizza_3',
-    name: 'Woodfired Pepperoni & Sausage Pizza',
-    category: 'Pizza',
-    restaurantName: 'Artisan Crust Pizza Lab',
-    restaurantId: 'rest_artisan_crust',
-    rating: 4.9,
-    ratingCount: 1840,
-    prepTime: 12,
-    price: 419,
-    isVeg: false,
-    image: 'https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?w=600&auto=format&fit=crop&q=80',
-    description: 'Generously loaded with Italian pork pepperoni, herb-seasoned sausages, mozzarella, and hot honey drizzle.',
-    popular: true,
-    tags: ['Bestseller']
-  },
-
-  // Burgers
-  {
-    id: 'food_burger_1',
-    name: 'Double Smash Cheddar Burger',
+    id: 'food_burger_chicken',
+    name: 'Chicken Burger',
     category: 'Burgers',
-    restaurantName: 'Smash & Craft Burger Co.',
-    restaurantId: 'rest_burger_craft',
-    rating: 4.8,
-    ratingCount: 1980,
-    prepTime: 10,
-    price: 279,
+    restaurantName: 'KFC',
+    restaurantId: 'rest_kfc',
+    rating: 4.6,
+    ratingCount: 3950,
+    prepTime: 9,
+    price: 149,
     isVeg: false,
     image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600&auto=format&fit=crop&q=80',
-    description: 'Two crispy smashed beef-style patties, double aged English cheddar, secret sauce, caramelized onions in a brioche bun.',
+    description: 'Crispy hand-breaded chicken fillet nestled inside toasted sesame brioche buns with creamy mayo and crunchy iceberg lettuce.',
     popular: true,
-    tags: ['Chef Pick']
+    tags: ['Hot & Crispy']
   },
   {
-    id: 'food_burger_2',
-    name: 'Crispy Korean Fried Chicken Burger',
-    category: 'Burgers',
-    restaurantName: 'Smash & Craft Burger Co.',
-    restaurantId: 'rest_burger_craft',
+    id: 'food_masala_dosa',
+    name: 'Masala Dosa',
+    category: 'South Indian',
+    restaurantName: 'Spice Route Kitchen',
+    restaurantId: 'rest_spice_route',
     rating: 4.9,
-    ratingCount: 1450,
-    prepTime: 9,
-    price: 269,
-    isVeg: false,
-    image: 'https://images.unsplash.com/photo-1625813506062-0aeb1d7a094b?w=600&auto=format&fit=crop&q=80',
-    description: 'Ultra-crispy fried chicken thigh glazed in sweet and spicy gochujang, topped with kimchi slaw and kewpie mayo.',
-    popular: true,
-    tags: ['Spicy']
-  },
-  {
-    id: 'food_burger_3',
-    name: 'Truffle Mushroom Melt Veg Burger',
-    category: 'Burgers',
-    restaurantName: 'Smash & Craft Burger Co.',
-    restaurantId: 'rest_burger_craft',
-    rating: 4.7,
-    ratingCount: 920,
+    ratingCount: 2650,
     prepTime: 8,
-    price: 239,
+    price: 119,
     isVeg: true,
-    image: 'https://images.unsplash.com/photo-1584947897667-0c7f4e8b3ec4?w=600&auto=format&fit=crop&q=80',
-    description: 'Crispy mushroom and quinoa patty smothered in melted gouda cheese, truffle aioli, and fresh arugula on brioche.',
-    tags: ['Vegetarian']
-  },
-
-  // Indian
-  {
-    id: 'food_indian_1',
-    name: 'Old Delhi Butter Chicken & Naan Combo',
-    category: 'Indian',
-    restaurantName: 'Spice Route Kitchen',
-    restaurantId: 'rest_spice_route',
-    rating: 4.9,
-    ratingCount: 3100,
-    prepTime: 13,
-    price: 319,
-    isVeg: false,
-    image: 'https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?w=600&auto=format&fit=crop&q=80',
-    description: 'Tandoori roasted chicken in a velvety makhani gravy with cashew paste and fenugreek. Served with 2 butter garlic naans.',
+    image: 'https://images.unsplash.com/photo-1668236543090-82eba5ee5976?w=600&auto=format&fit=crop&q=80',
+    description: 'Golden crispy fermented crepe stuffed with spiced tempered potato masala. Served with hot sambar and three homemade chutneys.',
     popular: true,
-    tags: ['Classic']
+    tags: ['Breakfast Favorite']
   },
   {
-    id: 'food_indian_2',
-    name: 'Dal Makhani Royal Thali',
-    category: 'Indian',
-    restaurantName: 'Spice Route Kitchen',
-    restaurantId: 'rest_spice_route',
-    rating: 4.8,
-    ratingCount: 1650,
-    prepTime: 10,
-    price: 269,
-    isVeg: true,
-    image: 'https://images.unsplash.com/photo-1546833999-b9f581a1996d?w=600&auto=format&fit=crop&q=80',
-    description: 'Slow-simmered black lentils for 24 hours with butter and cream, accompanied by Jeera Rice, Lachha Paratha and gulab jamun.',
-    tags: ['Comfort Food']
-  },
-
-  // Chinese
-  {
-    id: 'food_chinese_1',
-    name: 'Szechuan Chili Garlic Noodles & Dimsums',
+    id: 'food_veg_fried_rice',
+    name: 'Veg Fried Rice',
     category: 'Chinese',
     restaurantName: 'Dragon Wok Asian Bar',
     restaurantId: 'rest_dragon_wok',
-    rating: 4.8,
-    ratingCount: 1280,
-    prepTime: 12,
-    price: 259,
+    rating: 4.7,
+    ratingCount: 1890,
+    prepTime: 10,
+    price: 139,
     isVeg: true,
-    image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=600&auto=format&fit=crop&q=80',
-    description: 'Hand-pulled wok-tossed noodles in fiery red chili garlic sauce with crunchy greens and 4 steamed crystal dumplings.',
+    image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?w=600&auto=format&fit=crop&q=80',
+    description: 'Wok-tossed long-grain rice with crunchy carrots, cabbage, spring onions, garlic and dark savory soy glaze.',
     popular: true,
     tags: ['Wok Fresh']
   },
   {
-    id: 'food_chinese_2',
-    name: 'Crispy Kung Pao Chicken Rice Bowl',
-    category: 'Chinese',
-    restaurantName: 'Dragon Wok Asian Bar',
-    restaurantId: 'rest_dragon_wok',
+    id: 'food_chicken_roll',
+    name: 'Chicken Roll',
+    category: 'Rolls & Wraps',
+    restaurantName: 'Smash & Craft Burger Co.',
+    restaurantId: 'rest_burger_craft',
     rating: 4.7,
-    ratingCount: 940,
-    prepTime: 11,
-    price: 279,
-    isVeg: false,
-    image: 'https://images.unsplash.com/photo-1525755662778-989d0524087e?w=600&auto=format&fit=crop&q=80',
-    description: 'Diced chicken tossed with roasted peanuts, dry red chilies, scallions, and tangy Kung Pao sauce over egg fried rice.',
-    tags: ['Spicy']
-  },
-
-  // Healthy
-  {
-    id: 'food_healthy_1',
-    name: 'Avocado Quinoa Green Goddess Bowl',
-    category: 'Healthy',
-    restaurantName: 'Green Harvest Bowls',
-    restaurantId: 'rest_green_harvest',
-    rating: 4.9,
-    ratingCount: 890,
-    prepTime: 7,
-    price: 299,
-    isVeg: true,
-    image: 'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&auto=format&fit=crop&q=80',
-    description: 'Organic tricolor quinoa, Hass avocado, edamame, baby spinach, roasted chickpeas, pumpkin seeds with herb tahini dressing.',
-    popular: true,
-    tags: ['Superfood', 'High Protein']
-  },
-  {
-    id: 'food_healthy_2',
-    name: 'Grilled Herb Chicken & Sweet Potato Bowl',
-    category: 'Healthy',
-    restaurantName: 'Green Harvest Bowls',
-    restaurantId: 'rest_green_harvest',
-    rating: 4.8,
-    ratingCount: 760,
-    prepTime: 9,
-    price: 329,
-    isVeg: false,
-    image: 'https://images.unsplash.com/photo-1543339308-43e59d6b73a6?w=600&auto=format&fit=crop&q=80',
-    description: 'Sous-vide grilled chicken breast, roasted spiced sweet potato cubes, steamed broccoli, and avocado lemon vinaigrette.',
-    tags: ['45g Protein']
-  },
-
-  // Desserts
-  {
-    id: 'food_dessert_1',
-    name: 'Belgian Molten Chocolate Lava Cake',
-    category: 'Desserts',
-    restaurantName: 'Artisan Crust Pizza Lab',
-    restaurantId: 'rest_artisan_crust',
-    rating: 4.9,
-    ratingCount: 1980,
+    ratingCount: 2210,
     prepTime: 8,
-    price: 189,
-    isVeg: true,
-    image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=600&auto=format&fit=crop&q=80',
-    description: 'Warm dark Belgian chocolate cake with a gooey flowing ganache center, served with vanilla bean cream.',
+    price: 129,
+    isVeg: false,
+    image: 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=600&auto=format&fit=crop&q=80',
+    description: 'Flaky layered paratha wrapped around succulent spiced chicken tikka morsels, sliced onions and tangy mint chutney.',
     popular: true,
-    tags: ['Indulgent']
+    tags: ['Quick Bite']
   },
   {
-    id: 'food_dessert_2',
-    name: 'Pistachio Saffron Milk Cake',
-    category: 'Desserts',
+    id: 'food_samosa_pack',
+    name: 'Crispy Samosa (2 Pcs)',
+    category: 'Snacks',
     restaurantName: 'Spice Route Kitchen',
     restaurantId: 'rest_spice_route',
     rating: 4.8,
-    ratingCount: 1120,
+    ratingCount: 1740,
     prepTime: 6,
-    price: 159,
+    price: 59,
     isVeg: true,
-    image: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=600&auto=format&fit=crop&q=80',
-    description: 'Soft sponge soaked in three evaporated milks infused with Kashmiri saffron and topped with crushed Iranian pistachios.',
-    tags: ['Must Try']
+    image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=600&auto=format&fit=crop&q=80',
+    description: 'Flaky golden pastry triangles filled with aromatic spiced potato and green pea filling. Served with tamarind & mint chutney.',
+    popular: true,
+    tags: ['Evening Special']
   },
-
-  // Drinks
   {
-    id: 'food_drink_1',
-    name: 'Sparkling Mango Mint Brew',
-    category: 'Drinks',
+    id: 'food_lava_cake',
+    name: 'Chocolate Lava Cake',
+    category: 'Desserts',
+    restaurantName: "Domino's Pizza",
+    restaurantId: 'rest_dominos',
+    rating: 4.9,
+    ratingCount: 4680,
+    prepTime: 7,
+    price: 169,
+    isVeg: true,
+    image: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=600&auto=format&fit=crop&q=80',
+    description: 'Warm chocolate cake crust with a decadent, gooey liquid chocolate truffle core that melts in your mouth.',
+    popular: true,
+    tags: ['Decadent']
+  },
+  {
+    id: 'food_cold_coffee',
+    name: 'Classic Cold Coffee',
+    category: 'Beverages',
+    restaurantName: "McDonald's",
+    restaurantId: 'rest_mcdonalds',
+    rating: 4.6,
+    ratingCount: 2820,
+    prepTime: 5,
+    price: 99,
+    isVeg: true,
+    image: 'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=600&auto=format&fit=crop&q=80',
+    description: 'Thick and creamy chilled espresso blend churned with vanilla soft ice cream and dark cocoa sprinkles.',
+    popular: true,
+    tags: ['Chilled Refresher']
+  },
+  {
+    id: 'food_peri_peri_fries',
+    name: 'Peri-Peri Crinkle Fries',
+    category: 'Fast Food',
+    restaurantName: "McDonald's",
+    restaurantId: 'rest_mcdonalds',
+    rating: 4.7,
+    ratingCount: 3100,
+    prepTime: 6,
+    price: 89,
+    isVeg: true,
+    image: 'https://images.unsplash.com/photo-1576107232684-1279f3908594?w=600&auto=format&fit=crop&q=80',
+    description: 'Crispy crinkle cut potatoes shaken with fiery African peri-peri spices and seasoned to golden perfection.',
+    popular: true,
+    tags: ['Crispy Snack']
+  },
+  {
+    id: 'food_butter_naan',
+    name: 'Garlic Butter Naan',
+    category: 'North Indian',
+    restaurantName: 'Spice Route Kitchen',
+    restaurantId: 'rest_spice_route',
+    rating: 4.8,
+    ratingCount: 1980,
+    prepTime: 5,
+    price: 45,
+    isVeg: true,
+    image: 'https://images.unsplash.com/photo-1626777552726-4a6b54c97e46?w=600&auto=format&fit=crop&q=80',
+    description: 'Tandoor-baked leavened flatbread brushed with garlic butter and fresh coriander leaves.',
+    tags: ['Tandoor Fresh']
+  },
+  {
+    id: 'food_chicken_tikka',
+    name: 'Smoky Chicken Tikka',
+    category: 'Chicken',
+    restaurantName: 'Paradise Biryani',
+    restaurantId: 'rest_paradise',
+    rating: 4.9,
+    ratingCount: 2750,
+    prepTime: 12,
+    price: 219,
+    isVeg: false,
+    image: 'https://images.unsplash.com/photo-1599481238640-4c1288750d7a?w=600&auto=format&fit=crop&q=80',
+    description: 'Boneless chicken chunks marinated in hung curd, Kashmiri chilies, mustard oil and charcoal roasted on iron skewers.',
+    popular: true,
+    tags: ['Smoky Grill']
+  },
+  {
+    id: 'food_belgian_waffle',
+    name: 'Belgian Nutella Waffle',
+    category: 'Desserts',
+    restaurantName: 'The Belgian Waffle Co.',
+    restaurantId: 'rest_belgian_waffle',
+    rating: 4.8,
+    ratingCount: 2310,
+    prepTime: 9,
+    price: 149,
+    isVeg: true,
+    image: 'https://images.unsplash.com/photo-1562376552-0d160a2f238d?w=600&auto=format&fit=crop&q=80',
+    description: 'Freshly baked crispy waffle sandwich stuffed with rich hazelnut Nutella chocolate and dusted with powdered sugar.',
+    popular: true,
+    tags: ['Sweet Cravings']
+  },
+  {
+    id: 'food_mango_lassi',
+    name: 'Alphonso Mango Lassi',
+    category: 'Beverages',
+    restaurantName: 'Paradise Biryani',
+    restaurantId: 'rest_paradise',
+    rating: 4.7,
+    ratingCount: 1450,
+    prepTime: 4,
+    price: 79,
+    isVeg: true,
+    image: 'https://images.unsplash.com/photo-1546173159-315724a31696?w=600&auto=format&fit=crop&q=80',
+    description: 'Traditional thick churned yogurt lassi infused with pure Alphonso mango pulp and fragrant green cardamom.',
+    tags: ['Summer Special']
+  },
+  {
+    id: 'food_icecream_sundae',
+    name: 'Death by Chocolate Sundae',
+    category: 'Ice Cream',
+    restaurantName: 'The Belgian Waffle Co.',
+    restaurantId: 'rest_belgian_waffle',
+    rating: 4.9,
+    ratingCount: 1820,
+    prepTime: 6,
+    price: 179,
+    isVeg: true,
+    image: 'https://images.unsplash.com/photo-1501443762994-82bd5dace89a?w=600&auto=format&fit=crop&q=80',
+    description: 'Three scoops of dark chocolate and vanilla gelato layered with fudge brownie chunks, hot fudge sauce and roasted peanuts.',
+    tags: ['Signature']
+  },
+  {
+    id: 'food_grilled_sandwich',
+    name: 'Bombay Masala Cheese Grilled Sandwich',
+    category: 'Sandwiches',
     restaurantName: 'Green Harvest Bowls',
     restaurantId: 'rest_green_harvest',
     rating: 4.7,
-    ratingCount: 650,
-    prepTime: 4,
-    price: 119,
-    isVeg: true,
-    image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=600&auto=format&fit=crop&q=80',
-    description: 'Fresh Alphonso mango pulp infused with crushed mint leaves, lime zest, and effervescent sparkling mountain soda.',
-    tags: ['Refreshing']
-  },
-  {
-    id: 'food_drink_2',
-    name: 'Cold Pressed Hibiscus Berry Cooler',
-    category: 'Drinks',
-    restaurantName: 'Green Harvest Bowls',
-    restaurantId: 'rest_green_harvest',
-    rating: 4.8,
-    ratingCount: 780,
-    prepTime: 4,
+    ratingCount: 1190,
+    prepTime: 8,
     price: 129,
     isVeg: true,
-    image: 'https://images.unsplash.com/photo-1556881286-fc6915169721?w=600&auto=format&fit=crop&q=80',
-    description: 'Organic hibiscus flower brew with wild strawberries, chia seeds, and raw blossom honey. Antioxidant powerhouse.',
-    popular: true,
-    tags: ['Healthy']
+    image: 'https://images.unsplash.com/photo-1528735602780-2552fd46c7af?w=600&auto=format&fit=crop&q=80',
+    description: 'Triple-decker sandwich layered with spiced potato mash, crunchy cucumber, beetroots, cheese and coriander chutney.',
+    tags: ['Street Classic']
+  },
+  {
+    id: 'food_quinoa_bowl',
+    name: 'Mediterranean Avocado Protein Bowl',
+    category: 'Healthy',
+    restaurantName: 'Green Harvest Bowls',
+    restaurantId: 'rest_green_harvest',
+    rating: 4.9,
+    ratingCount: 940,
+    prepTime: 9,
+    price: 269,
+    isVeg: true,
+    image: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&auto=format&fit=crop&q=80',
+    description: 'Organic tri-color quinoa, sliced hass avocado, roasted chickpeas, cherry tomatoes, cucumbers and lemon tahini dressing.',
+    tags: ['Superfood']
+  }
+];
+
+export const PROMO_OFFERS = [
+  {
+    code: 'WELCOME50',
+    discount: '50% OFF',
+    description: 'Use code WELCOME50 on your first food order',
+    minOrder: 199,
+    maxDiscount: 100,
+    bgGradient: 'from-orange-500 to-amber-500',
+    icon: '🎉'
+  },
+  {
+    code: 'BIRYANI30',
+    discount: '30% OFF',
+    description: 'On all handi dum biryanis from Paradise & Spice Route',
+    minOrder: 299,
+    maxDiscount: 120,
+    bgGradient: 'from-rose-500 to-pink-600',
+    icon: '🍗'
+  },
+  {
+    code: 'PIZZAFEST',
+    discount: 'FLAT ₹100 OFF',
+    description: 'On orders above ₹399 from Domino & Artisan Crust',
+    minOrder: 399,
+    maxDiscount: 100,
+    bgGradient: 'from-cyan-600 to-blue-600',
+    icon: '🍕'
+  },
+  {
+    code: 'FREEDEL',
+    discount: 'FREE DELIVERY',
+    description: 'AI-guaranteed free express courier on all carts',
+    minOrder: 149,
+    maxDiscount: 40,
+    bgGradient: 'from-emerald-500 to-teal-600',
+    icon: '⚡'
   }
 ];

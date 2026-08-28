@@ -1,74 +1,59 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/Navbar';
-import { CustomerHero } from './components/CustomerHero';
-import { FoodDiscoveryCarousels } from './components/FoodDiscoveryCarousels';
-import { AIDeliveryPredictionCard } from './components/AIDeliveryPredictionCard';
-import { FoodCatalog } from './components/FoodCatalog';
+import { SplashScreen } from './components/SplashScreen';
+import { FoodHeroCarousel } from './components/FoodHeroCarousel';
+import { CategoryCarousel } from './components/CategoryCarousel';
+import { TopRestaurantsCarousel } from './components/TopRestaurantsCarousel';
+import { OffersSection } from './components/OffersSection';
+import { PopularDishesSection } from './components/PopularDishesSection';
+import { RestaurantDetailPage } from './components/RestaurantDetailPage';
 import { RestaurantsView } from './components/RestaurantsView';
 import { MyOrdersView } from './components/MyOrdersView';
-import { DeliveryDigitalTwin } from './components/DeliveryDigitalTwin';
-import { DecisionRoom } from './components/DecisionRoom';
-import { RouteBattle } from './components/RouteBattle';
-import { DeliveryHealthWidget } from './components/DeliveryHealthWidget';
-import { LiveRecalculationBanner } from './components/LiveRecalculationBanner';
+import { CustomerDashboard } from './components/CustomerDashboard';
+import { AIPredictionLab } from './components/AIPredictionLab';
+import { RiderDashboard } from './components/RiderDashboard';
+import { Footer } from './components/Footer';
+
+// Supporting Modals & Views
 import { CartDrawer } from './components/CartDrawer';
 import { CheckoutModal } from './components/CheckoutModal';
 import { OrderConfirmedModal } from './components/OrderConfirmedModal';
-import { PlayWhileWaiting } from './components/games/PlayWhileWaiting';
-import { DeliveryRushGame } from './components/games/DeliveryRushGame';
-import { CatchTheFoodGame } from './components/games/CatchTheFoodGame';
-import { GuessYourETAGame } from './components/games/GuessYourETAGame';
+import { CustomerOtpModal } from './components/CustomerOtpModal';
 import { FutureViewModal } from './components/FutureViewModal';
 import { RewardsWalletModal } from './components/RewardsWalletModal';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AuthModal } from './components/AuthModal';
 import { DeliveryCompleteReport } from './components/DeliveryCompleteReport';
-import { CityDeliveryPulse } from './components/CityDeliveryPulse';
 import { LocationSelectorModal } from './components/LocationSelectorModal';
 import { AIAssistantChatbot } from './components/AIAssistantChatbot';
-import { AIInsightsPanel } from './components/AIInsightsPanel';
-import { AIModelPerformanceDashboard } from './components/AIModelPerformanceDashboard';
-import { RiderDashboard } from './components/RiderDashboard';
-import { CustomerDashboard } from './components/CustomerDashboard';
-import { CustomerOtpModal } from './components/CustomerOtpModal';
-import { RoleSelectorBar } from './components/RoleSelectorBar';
+import { LiveRecalculationBanner } from './components/LiveRecalculationBanner';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { AppTab } from './types';
 
-import {
-  Compass,
-  Sliders,
-  Sparkles,
-  MapPin,
-  Activity,
-  Receipt,
-  RotateCcw,
-  Coins,
-  BrainCircuit,
-  Gift,
-  ArrowRight,
-  ShieldCheck,
-  CheckCircle2,
-  Car,
-  CloudRain,
-  Eye
-} from 'lucide-react';
+// Games & Secondary views
+import { PlayWhileWaiting } from './components/games/PlayWhileWaiting';
+import { DeliveryRushGame } from './components/games/DeliveryRushGame';
+import { CatchTheFoodGame } from './components/games/CatchTheFoodGame';
+import { GuessYourETAGame } from './components/games/GuessYourETAGame';
+import { CityDeliveryPulse } from './components/CityDeliveryPulse';
+import { RouteBattle } from './components/RouteBattle';
+import { DecisionRoom } from './components/DecisionRoom';
+import { DeliveryDigitalTwin } from './components/DeliveryDigitalTwin';
+import { DeliveryHealthWidget } from './components/DeliveryHealthWidget';
+import { AppTab } from './types';
+import { BrainCircuit, Sparkles, ArrowRight, Coins, Eye, MapPin } from 'lucide-react';
 
 const MainDashboard: React.FC = () => {
+  const [showSplash, setShowSplash] = useState(true);
   const {
     activeTab,
     setActiveTab,
-    conditions,
-    updateConditions,
     activeGame,
     setIsWalletOpen,
     setIsFutureViewOpen,
     setIsCheckoutOpen,
     setIsAuthOpen,
-    resetSimulation,
-    user,
-    prediction
+    user
   } = useApp();
 
   // Bi-directional URL Hash Synchronization
@@ -79,10 +64,12 @@ const MainDashboard: React.FC = () => {
       const target = hash || path;
 
       if (target === 'restaurants') setActiveTab('RESTAURANTS');
+      else if (target === 'restaurant-detail' || target.startsWith('restaurant/')) setActiveTab('RESTAURANT_DETAIL');
+      else if (target === 'offers' || target === 'deals') setActiveTab('OFFERS');
       else if (target === 'orders' || target === 'my-orders') setActiveTab('ORDERS');
-      else if (target === 'tracking' || target === 'twin' || target === 'digital-twin') setActiveTab('TWIN');
+      else if (target === 'tracking' || target === 'twin' || target === 'track-order') setActiveTab('TWIN');
+      else if (target === 'ai-prediction' || target === 'ai_lab' || target === 'insights' || target === 'ai') setActiveTab('AI_LAB');
       else if (target === 'rider' || target === 'delivery-boy' || target === 'courier') setActiveTab('RIDER');
-      else if (target === 'insights' || target === 'benchmarks' || target === 'ai') setActiveTab('INSIGHTS');
       else if (target === 'games' || target === 'play') setActiveTab('GAMES');
       else if (target === 'pulse' || target === 'city-pulse') setActiveTab('PULSE');
       else if (target === 'routes' || target === 'route-battle') setActiveTab('ROUTES');
@@ -113,16 +100,19 @@ const MainDashboard: React.FC = () => {
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [setActiveTab, setIsWalletOpen, setIsFutureViewOpen, setIsCheckoutOpen, setIsAuthOpen]);
 
-  // Sync state to hash without page reload
+  // Sync state to hash
   useEffect(() => {
     const tabToHash: Record<AppTab, string> = {
       HOME: 'home',
       RESTAURANTS: 'restaurants',
+      RESTAURANT_DETAIL: 'restaurant-detail',
+      OFFERS: 'offers',
       ORDERS: 'orders',
       TWIN: 'tracking',
       TRACKING: 'tracking',
+      AI_LAB: 'ai-prediction',
+      INSIGHTS: 'ai-prediction',
       RIDER: 'rider',
-      INSIGHTS: 'insights',
       GAMES: 'games',
       PULSE: 'city-pulse',
       ROUTES: 'routes',
@@ -130,7 +120,8 @@ const MainDashboard: React.FC = () => {
       REWARDS: 'rewards',
       FUTURE: 'future',
       PROFILE: 'profile',
-      CHECKOUT: 'checkout'
+      CHECKOUT: 'checkout',
+      ADMIN: 'admin'
     };
 
     const targetHash = tabToHash[activeTab] || 'home';
@@ -139,238 +130,203 @@ const MainDashboard: React.FC = () => {
     }
   }, [activeTab]);
 
-  // Quick Preset Environmental Scenarios
-  const applyPreset = async (presetName: string) => {
-    if (presetName === 'storm_traffic') {
-      await updateConditions({
-        trafficLevel: 'SEVERE',
-        weatherCondition: 'HEAVY_RAIN',
-        distanceKm: 6.8,
-        restaurantPrepTime: 12
-      }, '⚡ Monsoon Storm & Severe Congestion');
-    } else if (presetName === 'kitchen_surge') {
-      await updateConditions({
-        trafficLevel: 'MEDIUM',
-        weatherCondition: 'CLEAR',
-        restaurantPrepTime: 22,
-        storeStatus: 'DELAYED'
-      }, '🍕 Kitchen Peak Rush Surge');
-    } else if (presetName === 'sunny_sprint') {
-      await updateConditions({
-        trafficLevel: 'LOW',
-        weatherCondition: 'CLEAR',
-        distanceKm: 3.2,
-        restaurantPrepTime: 6,
-        storeStatus: 'READY'
-      }, '☀️ Optimal Weather & Clear Corridor');
-    }
-  };
-
   const isTrackingActive = activeTab === 'TWIN' || activeTab === 'TRACKING';
 
   return (
-    <div className="min-h-screen bg-[#faf8f5] text-slate-900 selection:bg-cyan-100 selection:text-cyan-900 font-sans pb-24 overflow-x-hidden">
+    <div className="min-h-screen bg-[#faf8f5] text-slate-900 selection:bg-orange-100 selection:text-orange-900 font-sans flex flex-col justify-between overflow-x-hidden">
       
-      {/* Top Navbar */}
-      <Navbar />
+      {/* 1. Brand Intro Splash Screen (Initial 2.5s) */}
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
 
-      {/* Sticky Real-Time Recalculation Alert */}
-      <LiveRecalculationBanner />
+      <div>
+        {/* Top Sticky Navbar */}
+        <Navbar />
 
-      {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
-        
-        {/* Environmental Stress Scenario Bar (Available on Home, Tracking, Pulse & Routes) */}
-        {(activeTab === 'HOME' || isTrackingActive || activeTab === 'PULSE' || activeTab === 'ROUTES' || activeTab === 'DECISION_ROOM') && (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-orange-200/80 bg-gradient-to-r from-orange-50/90 via-amber-50/70 to-cyan-50/70 p-3 shadow-2xs">
-            <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-cyan-600 animate-ping" />
-              <span className="text-xs font-bold text-slate-900">Live AI Environment:</span>
-              <span className="rounded-md bg-white/90 px-2 py-0.5 text-[11px] font-mono font-bold text-slate-800 border border-orange-200">
-                {conditions.trafficLevel} Traffic • {conditions.weatherCondition.replace('_', ' ')} • {conditions.distanceKm} km
-              </span>
-            </div>
+        {/* Sticky Real-Time Recalculation Alert Banner */}
+        <LiveRecalculationBanner />
 
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                id="btn-preset-storm"
-                onClick={() => applyPreset('storm_traffic')}
-                className="rounded-xl border border-rose-300 bg-rose-100/80 px-2.5 py-1 text-xs font-bold text-rose-950 hover:bg-rose-200 transition-colors flex items-center gap-1 shadow-2xs"
-              >
-                <span>🌧</span> Heavy Storm (+5m)
-              </button>
-              <button
-                id="btn-preset-kitchen"
-                onClick={() => applyPreset('kitchen_surge')}
-                className="rounded-xl border border-amber-300 bg-amber-100/80 px-2.5 py-1 text-xs font-bold text-amber-950 hover:bg-amber-200 transition-colors flex items-center gap-1 shadow-2xs"
-              >
-                <span>🍕</span> Kitchen Surge (+8m)
-              </button>
-              <button
-                id="btn-preset-clear"
-                onClick={() => applyPreset('sunny_sprint')}
-                className="rounded-xl border border-emerald-300 bg-emerald-100/80 px-2.5 py-1 text-xs font-bold text-emerald-950 hover:bg-emerald-200 transition-colors flex items-center gap-1 shadow-2xs"
-              >
-                <span>☀️</span> Clear Sprint (-4m)
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Main Content Area */}
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-8 flex-1">
+          
+          {/* ========================================================================= */}
+          {/* ROUTE 1: FOOD HOMEPAGE (Customer / User default experience) */}
+          {/* ========================================================================= */}
+          {activeTab === 'HOME' && (
+            <ErrorBoundary fallbackTitle="Home View Recovery">
+              <div className="space-y-10 animate-in fade-in duration-300">
+                {/* 1. Hero Food Carousel */}
+                <FoodHeroCarousel />
 
-        {/* ========================================================================= */}
-        {/* ROUTE 1: HOME */}
-        {/* ========================================================================= */}
-        {activeTab === 'HOME' && (
-          <ErrorBoundary fallbackTitle="Home View Recovery">
-            <div className="space-y-8 animate-in fade-in duration-300">
-              {/* Role Selection / Navigation Section at the Top */}
-              <RoleSelectorBar />
+                {/* 2. Categories Carousel ("What's on your mind? 🍽️") */}
+                <CategoryCarousel />
 
-              <CustomerHero />
-              
-              {/* Standout AI Delivery Prediction Card (Live Intelligence) */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2">
-                    <BrainCircuit className="h-6 w-6 text-cyan-600" />
-                    <span>Active Order Delivery Prediction</span>
-                  </h2>
-                  <button
-                    onClick={() => setActiveTab('TWIN')}
-                    className="flex items-center gap-1 text-xs font-bold text-cyan-700 hover:text-cyan-800 bg-cyan-50 hover:bg-cyan-100 px-3 py-1.5 rounded-xl border border-cyan-200 transition-colors"
-                  >
-                    <span>Full Live Map Tracking</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <AIDeliveryPredictionCard />
+                {/* 3. Top Restaurants Near You ("Top Restaurants Near You 🔥") */}
+                <TopRestaurantsCarousel />
+
+                {/* 4. Promotional Offers ("Today's Best Offers 🏷️") */}
+                <OffersSection />
+
+                {/* 5. Popular Dishes Grid ("Popular Dishes Near You 🍽️") */}
+                <PopularDishesSection />
+
+                {/* 6. AI Delivery Intelligence Spotlight Banner */}
+                <section className="relative overflow-hidden rounded-3xl border border-orange-200/80 bg-gradient-to-r from-orange-600 via-amber-600 to-cyan-700 p-6 sm:p-8 text-white shadow-md">
+                  <div className="absolute top-0 right-0 -z-0 h-64 w-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />
+                  
+                  <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div className="space-y-2 max-w-xl text-center md:text-left">
+                      <div className="inline-flex items-center gap-1.5 rounded-full bg-white/20 backdrop-blur-md px-3 py-1 text-xs font-black text-white border border-white/30">
+                        <Sparkles className="h-3.5 w-3.5" />
+                        <span>PredictEats AI Engine</span>
+                      </div>
+                      <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+                        AI Predicts. You Enjoy.
+                      </h3>
+                      <p className="text-xs sm:text-sm text-slate-100 font-medium leading-relaxed">
+                        Unlike static timers, our machine learning models calculate real-time kitchen surge, road friction, and corridor chokepoints so you always know when your food arrives.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <button
+                        onClick={() => setActiveTab('TWIN')}
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-xs font-black text-slate-900 shadow-md hover:bg-orange-50 hover:text-orange-600 transition-all hover:scale-105"
+                      >
+                        <BrainCircuit className="h-4 w-4 text-cyan-600" />
+                        <span>Track Active Order</span>
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('AI_LAB')}
+                        className="w-full sm:w-auto flex items-center justify-center gap-2 rounded-2xl bg-slate-950/60 border border-white/30 px-5 py-3 text-xs font-bold text-white hover:bg-slate-950/80 transition-all"
+                      >
+                        <span>Explore AI Prediction Lab</span>
+                        <ArrowRight className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </section>
               </div>
+            </ErrorBoundary>
+          )}
 
-              {/* Food Discovery Carousels */}
-              <FoodDiscoveryCarousels />
+          {/* ========================================================================= */}
+          {/* ROUTE 2: RESTAURANT DETAIL VIEW */}
+          {/* ========================================================================= */}
+          {activeTab === 'RESTAURANT_DETAIL' && (
+            <ErrorBoundary fallbackTitle="Restaurant Detail Recovery">
+              <RestaurantDetailPage onBack={() => setActiveTab('HOME')} />
+            </ErrorBoundary>
+          )}
 
-              {/* Comprehensive Full Menu & Kitchen Sync */}
-              <FoodCatalog />
-              
-              {/* Digital Twin Corridor Live Preview on Home */}
-              <div className="space-y-4 pt-6 border-t border-slate-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                      <BrainCircuit className="h-5 w-5 text-cyan-600" />
-                      <span>Live Delivery Digital Twin &amp; Partner Telemetry</span>
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Real-time physics corridor engine predicting courier telemetry and chokepoints
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setActiveTab('TWIN')}
-                    className="flex items-center gap-1 text-xs font-bold text-cyan-700 hover:text-cyan-800 bg-cyan-50 hover:bg-cyan-100 px-3 py-1.5 rounded-xl border border-cyan-200 transition-colors"
-                  >
-                    <span>Full Screen Tracking &amp; Route Battle</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <DeliveryDigitalTwin />
+          {/* ========================================================================= */}
+          {/* ROUTE 3: RESTAURANTS DIRECTORY */}
+          {/* ========================================================================= */}
+          {activeTab === 'RESTAURANTS' && (
+            <ErrorBoundary fallbackTitle="Restaurants View Recovery">
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <RestaurantsView />
               </div>
-            </div>
-          </ErrorBoundary>
-        )}
+            </ErrorBoundary>
+          )}
 
-        {/* ========================================================================= */}
-        {/* ROUTE: RIDER DASHBOARD (DELIVERY BOY / RIDER EXPERIENCE) */}
-        {/* ========================================================================= */}
-        {activeTab === 'RIDER' && (
-          <ErrorBoundary fallbackTitle="Rider Dashboard Recovery">
-            <RiderDashboard />
-          </ErrorBoundary>
-        )}
-
-        {/* ========================================================================= */}
-        {/* ROUTE 2: RESTAURANTS */}
-        {/* ========================================================================= */}
-        {activeTab === 'RESTAURANTS' && (
-          <ErrorBoundary fallbackTitle="Restaurants View Recovery">
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <RestaurantsView />
-            </div>
-          </ErrorBoundary>
-        )}
-
-        {/* ========================================================================= */}
-        {/* ROUTE 3: MY ORDERS */}
-        {/* ========================================================================= */}
-        {activeTab === 'ORDERS' && (
-          <ErrorBoundary fallbackTitle="Orders View Recovery">
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <MyOrdersView />
-            </div>
-          </ErrorBoundary>
-        )}
-
-        {/* ========================================================================= */}
-        {/* ROUTE 4: TRACKING / CUSTOMER DASHBOARD / DIGITAL TWIN */}
-        {/* ========================================================================= */}
-        {isTrackingActive && (
-          <ErrorBoundary fallbackTitle="AI Tracking View Recovery">
-            <div className="space-y-8 animate-in fade-in duration-300">
-              {/* Comprehensive Dedicated Customer Dashboard */}
-              <CustomerDashboard />
-
-              {/* Advanced Autonomous Digital Twin Simulator */}
-              <div className="pt-6 border-t border-slate-200 space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
-                      <BrainCircuit className="h-5 w-5 text-cyan-600" />
-                      <span>Deep Physics &amp; Corridor Simulator</span>
-                    </h3>
-                    <p className="text-xs text-slate-500">
-                      Multi-corridor telemetry and chokepoint simulation engine
-                    </p>
-                  </div>
-                </div>
-
-                <DeliveryDigitalTwin />
-
-                {/* 2-Column Section: AI Route Battle & Decision Room */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                  <div className="lg:col-span-7">
-                    <RouteBattle />
-                  </div>
-                  <div className="lg:col-span-5">
-                    <DecisionRoom />
-                  </div>
-                </div>
-
-                {/* Delivery Health Index */}
-                <DeliveryHealthWidget />
-
-                {/* Play While Waiting Gamification Hub */}
-                <PlayWhileWaiting />
+          {/* ========================================================================= */}
+          {/* ROUTE 4: PROMOTIONAL OFFERS */}
+          {/* ========================================================================= */}
+          {activeTab === 'OFFERS' && (
+            <ErrorBoundary fallbackTitle="Offers View Recovery">
+              <div className="space-y-8 animate-in fade-in duration-300">
+                <OffersSection />
+                <PopularDishesSection />
               </div>
-            </div>
-          </ErrorBoundary>
-        )}
+            </ErrorBoundary>
+          )}
 
-        {/* ========================================================================= */}
-        {/* ROUTE 5: GAMES & PLAY WHILE WAITING */}
-        {/* ========================================================================= */}
-        {activeTab === 'GAMES' && (
-          <ErrorBoundary fallbackTitle="Games Hub Recovery">
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
-                <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
-                      <span>🎮</span> Play While Waiting Hub
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Play arcade games while your food is on the way. Earn Delivery Points convertable into food vouchers!
-                    </p>
+          {/* ========================================================================= */}
+          {/* ROUTE 5: MY ORDERS */}
+          {/* ========================================================================= */}
+          {activeTab === 'ORDERS' && (
+            <ErrorBoundary fallbackTitle="Orders View Recovery">
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <MyOrdersView />
+              </div>
+            </ErrorBoundary>
+          )}
+
+          {/* ========================================================================= */}
+          {/* ROUTE 6: TRACK ORDER / DIGITAL TWIN (AI ETA Tracking) */}
+          {/* ========================================================================= */}
+          {isTrackingActive && (
+            <ErrorBoundary fallbackTitle="AI Tracking View Recovery">
+              <div className="space-y-8 animate-in fade-in duration-300">
+                <CustomerDashboard />
+
+                {/* Physics & Corridor Simulation */}
+                <div className="pt-6 border-t border-slate-200 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+                        <BrainCircuit className="h-5 w-5 text-cyan-600" />
+                        <span>Deep Physics &amp; Corridor Simulator</span>
+                      </h3>
+                      <p className="text-xs text-slate-500">
+                        Multi-corridor telemetry and chokepoint simulation engine
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
+
+                  <DeliveryDigitalTwin />
+
+                  {/* 2-Column Section: AI Route Battle & Decision Room */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <div className="lg:col-span-7">
+                      <RouteBattle />
+                    </div>
+                    <div className="lg:col-span-5">
+                      <DecisionRoom />
+                    </div>
+                  </div>
+
+                  <DeliveryHealthWidget />
+                  <PlayWhileWaiting />
+                </div>
+              </div>
+            </ErrorBoundary>
+          )}
+
+          {/* ========================================================================= */}
+          {/* ROUTE 7: AI PREDICTION LAB */}
+          {/* ========================================================================= */}
+          {(activeTab === 'AI_LAB' || activeTab === 'INSIGHTS') && (
+            <ErrorBoundary fallbackTitle="AI Prediction Lab Recovery">
+              <AIPredictionLab />
+            </ErrorBoundary>
+          )}
+
+          {/* ========================================================================= */}
+          {/* ROUTE 8: RIDER / DELIVERY BOY DASHBOARD */}
+          {/* ========================================================================= */}
+          {activeTab === 'RIDER' && (
+            <ErrorBoundary fallbackTitle="Rider Dashboard Recovery">
+              <RiderDashboard />
+            </ErrorBoundary>
+          )}
+
+          {/* ========================================================================= */}
+          {/* ROUTE 9: PLAY & EARN GAMES */}
+          {/* ========================================================================= */}
+          {activeTab === 'GAMES' && (
+            <ErrorBoundary fallbackTitle="Games Hub Recovery">
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
+                        <span>🎮</span> Play While Waiting Hub
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Play arcade games while your food is on the way. Earn Delivery Points convertable into food vouchers!
+                      </p>
+                    </div>
                     <button
                       onClick={() => setIsWalletOpen(true)}
                       className="flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition-colors"
@@ -380,227 +336,183 @@ const MainDashboard: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                <PlayWhileWaiting />
+                <DeliveryHealthWidget />
               </div>
+            </ErrorBoundary>
+          )}
 
-              <PlayWhileWaiting />
-              <DeliveryHealthWidget />
-            </div>
-          </ErrorBoundary>
-        )}
-
-        {/* ========================================================================= */}
-        {/* ROUTE: AI INSIGHTS & BENCHMARKS */}
-        {/* ========================================================================= */}
-        {activeTab === 'INSIGHTS' && (
-          <ErrorBoundary fallbackTitle="AI Insights Recovery">
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <AIInsightsPanel />
-              <AIModelPerformanceDashboard />
-            </div>
-          </ErrorBoundary>
-        )}
-
-        {/* ========================================================================= */}
-        {/* ROUTE 6: CITY DELIVERY PULSE */}
-        {/* ========================================================================= */}
-        {activeTab === 'PULSE' && (
-          <ErrorBoundary fallbackTitle="City Pulse Recovery">
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <CityDeliveryPulse />
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                <div className="lg:col-span-7">
-                  <RouteBattle />
-                </div>
-                <div className="lg:col-span-5">
-                  <DecisionRoom />
-                </div>
+          {/* ========================================================================= */}
+          {/* ROUTE 10: CITY PULSE */}
+          {/* ========================================================================= */}
+          {activeTab === 'PULSE' && (
+            <ErrorBoundary fallbackTitle="City Pulse Recovery">
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <CityDeliveryPulse />
               </div>
-            </div>
-          </ErrorBoundary>
-        )}
+            </ErrorBoundary>
+          )}
 
-        {/* ========================================================================= */}
-        {/* ROUTE 7: AI ROUTE BATTLE */}
-        {/* ========================================================================= */}
-        {activeTab === 'ROUTES' && (
-          <ErrorBoundary fallbackTitle="Route Battle Recovery">
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs">
-                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-cyan-600" />
-                  <span>AI Route Battle &amp; Multi-Corridor Analysis</span>
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Compare optimal, highway bypass, and eco-efficient routes with real-time ETA and confidence scores.
-                </p>
-              </div>
-              <RouteBattle />
-              <DeliveryDigitalTwin />
-            </div>
-          </ErrorBoundary>
-        )}
-
-        {/* ========================================================================= */}
-        {/* ROUTE 8: AI DECISION ROOM */}
-        {/* ========================================================================= */}
-        {activeTab === 'DECISION_ROOM' && (
-          <ErrorBoundary fallbackTitle="Decision Room Recovery">
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs">
-                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <Sliders className="h-5 w-5 text-cyan-600" />
-                  <span>AI Decision Room &amp; SHAP Factor Attribution</span>
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Transparent machine learning explanations revealing why every minute of your ETA is calculated.
-                </p>
-              </div>
-              <DecisionRoom />
-              <DeliveryHealthWidget />
-            </div>
-          </ErrorBoundary>
-        )}
-
-        {/* ========================================================================= */}
-        {/* ROUTE 9: REWARDS WALLET VIEW */}
-        {/* ========================================================================= */}
-        {activeTab === 'REWARDS' && (
-          <ErrorBoundary fallbackTitle="Rewards Recovery">
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                      <Coins className="h-6 w-6 text-amber-500" />
-                      <span>Delivery Points &amp; Rewards Wallet</span>
-                    </h2>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Convert waiting game points and SLA delay compensations into food order discounts.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setIsWalletOpen(true)}
-                    className="rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors"
-                  >
-                    Open Wallet Ledger Modal
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
-                  <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
-                    <span className="text-xs font-semibold text-amber-800">Total Balance</span>
-                    <div className="text-2xl font-black text-amber-900 mt-1">
-                      {user?.deliveryPoints ?? 250} <span className="text-xs font-bold">Pts</span>
-                    </div>
-                    <span className="text-[11px] text-amber-700">₹{Math.round((user?.deliveryPoints ?? 250) / 10)} Food Voucher Value</span>
-                  </div>
-
-                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
-                    <span className="text-xs font-semibold text-emerald-800">Games Won</span>
-                    <div className="text-2xl font-black text-emerald-900 mt-1">
-                      {user?.totalGamesPlayed ?? 3} <span className="text-xs font-bold">Played</span>
-                    </div>
-                    <span className="text-[11px] text-emerald-700">+180 Pts Earned</span>
-                  </div>
-
-                  <div className="rounded-2xl border border-cyan-200 bg-cyan-50/60 p-4">
-                    <span className="text-xs font-semibold text-cyan-800">On-Time Accuracy</span>
-                    <div className="text-2xl font-black text-cyan-900 mt-1">
-                      94.2% <span className="text-xs font-bold">SLA</span>
-                    </div>
-                    <span className="text-[11px] text-cyan-700">Guaranteed Compensation</span>
-                  </div>
-                </div>
-              </div>
-
-              <PlayWhileWaiting />
-            </div>
-          </ErrorBoundary>
-        )}
-
-        {/* ========================================================================= */}
-        {/* ROUTE 10: FUTURE VIEW */}
-        {/* ========================================================================= */}
-        {activeTab === 'FUTURE' && (
-          <ErrorBoundary fallbackTitle="Future View Recovery">
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
-                <div>
+          {/* ========================================================================= */}
+          {/* ROUTE 11: ROUTES */}
+          {/* ========================================================================= */}
+          {activeTab === 'ROUTES' && (
+            <ErrorBoundary fallbackTitle="Route Battle Recovery">
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs">
                   <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <Eye className="h-5 w-5 text-cyan-600" />
-                    <span>Future View — AI Delivery Timeline Forecaster</span>
+                    <MapPin className="h-5 w-5 text-cyan-600" />
+                    <span>AI Route Battle &amp; Multi-Corridor Analysis</span>
                   </h2>
                   <p className="text-xs text-slate-500 mt-1">
-                    Inspect predicted arrival milestones, traffic corridor shifts, and chokepoints ahead of time.
+                    Compare optimal, highway bypass, and eco-efficient routes with real-time ETA and confidence scores.
                   </p>
                 </div>
-                <button
-                  onClick={() => setIsFutureViewOpen(true)}
-                  className="rounded-xl bg-cyan-600 hover:bg-cyan-700 px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors"
-                >
-                  Open Full Forecaster Modal
-                </button>
+                <RouteBattle />
+                <DeliveryDigitalTwin />
               </div>
-              <DeliveryDigitalTwin />
-            </div>
-          </ErrorBoundary>
-        )}
+            </ErrorBoundary>
+          )}
 
-        {/* ========================================================================= */}
-        {/* ROUTE 12: PROFILE */}
-        {/* ========================================================================= */}
-        {activeTab === 'PROFILE' && (
-          <ErrorBoundary fallbackTitle="Profile Recovery">
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-4">
-                <div className="flex flex-wrap items-center justify-between gap-4">
+          {/* ========================================================================= */}
+          {/* ROUTE 12: DECISION ROOM */}
+          {/* ========================================================================= */}
+          {activeTab === 'DECISION_ROOM' && (
+            <ErrorBoundary fallbackTitle="Decision Room Recovery">
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs">
+                  <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <span>🧠</span>
+                    <span>AI Decision Room &amp; SHAP Factor Attribution</span>
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Transparent machine learning explanations revealing why every minute of your ETA is calculated.
+                  </p>
+                </div>
+                <DecisionRoom />
+                <DeliveryHealthWidget />
+              </div>
+            </ErrorBoundary>
+          )}
+
+          {/* ========================================================================= */}
+          {/* ROUTE 13: REWARDS WALLET */}
+          {/* ========================================================================= */}
+          {activeTab === 'REWARDS' && (
+            <ErrorBoundary fallbackTitle="Rewards Recovery">
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                        <Coins className="h-6 w-6 text-amber-500" />
+                        <span>Delivery Points &amp; Rewards Wallet</span>
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Convert waiting game points and SLA delay compensations into food order discounts.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsWalletOpen(true)}
+                      className="rounded-xl bg-amber-500 hover:bg-amber-600 px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors"
+                    >
+                      Open Wallet Ledger Modal
+                    </button>
+                  </div>
+                </div>
+                <PlayWhileWaiting />
+              </div>
+            </ErrorBoundary>
+          )}
+
+          {/* ========================================================================= */}
+          {/* ROUTE 14: FUTURE VIEW */}
+          {/* ========================================================================= */}
+          {activeTab === 'FUTURE' && (
+            <ErrorBoundary fallbackTitle="Future View Recovery">
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
-                      User Profile &amp; Account Preferences
+                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                      <Eye className="h-5 w-5 text-cyan-600" />
+                      <span>Future View — AI Delivery Timeline Forecaster</span>
                     </h2>
                     <p className="text-xs text-slate-500 mt-1">
-                      Logged in as {user?.displayName || 'Dilip (AI Pilot)'} ({user?.email || 'dilipdhammu2@gmail.com'})
+                      Inspect predicted arrival milestones, traffic corridor shifts, and chokepoints ahead of time.
                     </p>
                   </div>
                   <button
-                    onClick={() => setIsAuthOpen(true)}
+                    onClick={() => setIsFutureViewOpen(true)}
                     className="rounded-xl bg-cyan-600 hover:bg-cyan-700 px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors"
                   >
-                    Manage Account / Edit Profile
+                    Open Full Forecaster Modal
                   </button>
                 </div>
+                <DeliveryDigitalTwin />
               </div>
-              <MyOrdersView />
-            </div>
-          </ErrorBoundary>
-        )}
+            </ErrorBoundary>
+          )}
 
-        {/* ========================================================================= */}
-        {/* ROUTE 13: CHECKOUT */}
-        {/* ========================================================================= */}
-        {activeTab === 'CHECKOUT' && (
-          <ErrorBoundary fallbackTitle="Checkout Recovery">
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs text-center space-y-3">
-                <h2 className="text-xl font-bold text-slate-900">Checkout &amp; Order Placement</h2>
-                <p className="text-xs text-slate-500">
-                  Ready to confirm your order with AI delivery prediction guarantees?
-                </p>
-                <button
-                  onClick={() => setIsCheckoutOpen(true)}
-                  className="rounded-xl bg-cyan-600 hover:bg-cyan-700 px-6 py-2.5 text-xs font-bold text-white shadow-xs transition-colors"
-                >
-                  Open Checkout Modal
-                </button>
+          {/* ========================================================================= */}
+          {/* ROUTE 15: PROFILE */}
+          {/* ========================================================================= */}
+          {activeTab === 'PROFILE' && (
+            <ErrorBoundary fallbackTitle="Profile Recovery">
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-xs space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                      <h2 className="text-xl sm:text-2xl font-bold text-slate-900">
+                        User Profile &amp; Account Preferences
+                      </h2>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Logged in as {user?.displayName || 'Dilip (AI Pilot)'} ({user?.email || 'dilipdhammu2@gmail.com'})
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsAuthOpen(true)}
+                      className="rounded-xl bg-cyan-600 hover:bg-cyan-700 px-4 py-2 text-xs font-bold text-white shadow-xs transition-colors"
+                    >
+                      Manage Account / Edit Profile
+                    </button>
+                  </div>
+                </div>
+                <MyOrdersView />
               </div>
-              <FoodCatalog />
-            </div>
-          </ErrorBoundary>
-        )}
+            </ErrorBoundary>
+          )}
 
-      </main>
+          {/* ========================================================================= */}
+          {/* ROUTE 16: CHECKOUT */}
+          {/* ========================================================================= */}
+          {activeTab === 'CHECKOUT' && (
+            <ErrorBoundary fallbackTitle="Checkout Recovery">
+              <div className="space-y-6 animate-in fade-in duration-300">
+                <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-xs text-center space-y-3">
+                  <h2 className="text-xl font-bold text-slate-900">Checkout &amp; Order Placement</h2>
+                  <p className="text-xs text-slate-500">
+                    Ready to confirm your order with AI delivery prediction guarantees?
+                  </p>
+                  <button
+                    onClick={() => setIsCheckoutOpen(true)}
+                    className="rounded-xl bg-orange-600 hover:bg-orange-700 px-6 py-2.5 text-xs font-bold text-white shadow-xs transition-colors"
+                  >
+                    Open Checkout Modal
+                  </button>
+                </div>
+                <PopularDishesSection />
+              </div>
+            </ErrorBoundary>
+          )}
 
-      {/* Modals and Drawers (Always mounted & state-driven) */}
+        </main>
+      </div>
+
+      {/* Global Application Footer */}
+      <Footer />
+
+      {/* Global Modals & Drawers */}
       <LocationSelectorModal />
       <CartDrawer />
       <CheckoutModal />

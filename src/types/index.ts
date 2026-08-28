@@ -11,10 +11,13 @@ export type OrderStatus = 'CONFIRMED' | 'PREPARING' | 'DRIVER_ASSIGNED' | 'OUT_F
 export type AppTab = 
   | 'HOME' 
   | 'RESTAURANTS' 
+  | 'RESTAURANT_DETAIL'
+  | 'OFFERS'
   | 'ORDERS' 
   | 'TWIN' 
   | 'TRACKING' 
   | 'INSIGHTS'
+  | 'AI_LAB'
   | 'GAMES' 
   | 'PULSE' 
   | 'ROUTES' 
@@ -23,7 +26,8 @@ export type AppTab =
   | 'FUTURE' 
   | 'PROFILE' 
   | 'CHECKOUT'
-  | 'RIDER';
+  | 'RIDER'
+  | 'ADMIN';
 
 export interface CartItem {
   id: string;

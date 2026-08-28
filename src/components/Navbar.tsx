@@ -92,6 +92,13 @@ export const Navbar: React.FC = () => {
       activeIconColor: 'text-amber-600'
     },
     {
+      tab: 'OFFERS',
+      label: 'Offers',
+      icon: TrendingUp,
+      activeStyle: 'bg-rose-50 text-rose-950 border-rose-200 font-black shadow-2xs',
+      activeIconColor: 'text-rose-600'
+    },
+    {
       tab: 'ORDERS',
       label: 'My Orders',
       icon: Receipt,
@@ -107,8 +114,8 @@ export const Navbar: React.FC = () => {
       activeIconColor: 'text-cyan-600'
     },
     {
-      tab: 'INSIGHTS',
-      label: 'AI Insights',
+      tab: 'AI_LAB',
+      label: 'AI Prediction',
       icon: Sparkles,
       badge: 'AI',
       activeStyle: 'bg-indigo-50 text-indigo-950 border-indigo-300 font-black shadow-2xs',
@@ -120,21 +127,6 @@ export const Navbar: React.FC = () => {
       icon: Gamepad2,
       activeStyle: 'bg-purple-50 text-purple-950 border-purple-200 font-black shadow-2xs',
       activeIconColor: 'text-purple-600'
-    },
-    {
-      tab: 'PULSE',
-      label: 'City Pulse',
-      icon: Activity,
-      activeStyle: 'bg-emerald-50 text-emerald-950 border-emerald-200 font-black shadow-2xs',
-      activeIconColor: 'text-emerald-600'
-    },
-    {
-      tab: 'RIDER',
-      label: 'Rider View',
-      icon: Bike,
-      badge: 'Rider',
-      activeStyle: 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-cyan-400 font-black shadow-md shadow-cyan-600/20',
-      activeIconColor: 'text-cyan-200'
     }
   ];
 
