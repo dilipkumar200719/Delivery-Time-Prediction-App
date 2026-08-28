@@ -18,14 +18,10 @@ import {
 } from 'lucide-react';
 
 export const DeliveryPartnerCard: React.FC<{ className?: string }> = ({ className = '' }) => {
-  const { tracking, activeOrder, setIsDeliveryCompleted } = useApp();
+  const { tracking, activeOrder, setIsOtpModalOpen } = useApp();
   
   const [isCalling, setIsCalling] = useState(false);
   const [isMessaging, setIsMessaging] = useState(false);
-  const [isOtpModalOpen, setIsOtpModalOpen] = useState(false);
-  const [enteredOtp, setEnteredOtp] = useState('');
-  const [otpError, setOtpError] = useState<string | null>(null);
-  const [resendCooldown, setResendCooldown] = useState(24);
   const [copiedOtp, setCopiedOtp] = useState(false);
   const [customMsg, setCustomMsg] = useState('');
   const [sentMessageToast, setSentMessageToast] = useState<string | null>(null);
@@ -33,7 +29,7 @@ export const DeliveryPartnerCard: React.FC<{ className?: string }> = ({ classNam
 
   const etaMinutes = tracking?.etaMinutes ?? 18;
   const remainingDist = tracking?.distanceRemainingKm ?? 2.8;
-  const deliveryOtp = '8553';
+  const deliveryOtp = activeOrder?.deliveryOtp || '8553';
 
   const quickMessages = [
     'Please leave order at my front door',
@@ -42,31 +38,10 @@ export const DeliveryPartnerCard: React.FC<{ className?: string }> = ({ classNam
     'Please do not ring the doorbell'
   ];
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (isOtpModalOpen && resendCooldown > 0) {
-      timer = setInterval(() => {
-        setResendCooldown(prev => Math.max(0, prev - 1));
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [isOtpModalOpen, resendCooldown]);
-
   const handleCopyOtp = () => {
     navigator.clipboard.writeText(deliveryOtp);
     setCopiedOtp(true);
     setTimeout(() => setCopiedOtp(false), 2000);
-  };
-
-  const handleVerifyOtpSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (enteredOtp.trim() === deliveryOtp) {
-      setOtpError(null);
-      setIsOtpModalOpen(false);
-      setIsDeliveryCompleted(true);
-    } else {
-      setOtpError('Invalid OTP code. Please enter the correct 4-digit code (8553).');
-    }
   };
 
   const handleSendMessage = (msg: string) => {
@@ -168,12 +143,8 @@ export const DeliveryPartnerCard: React.FC<{ className?: string }> = ({ classNam
       {/* Verify Delivery Handover (Enter OTP) Action Button */}
       <button
         id="btn-open-otp-verification"
-        onClick={() => {
-          setEnteredOtp('');
-          setOtpError(null);
-          setIsOtpModalOpen(true);
-        }}
-        className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-3 text-xs font-black tracking-wide shadow-md shadow-emerald-600/20 transition-all"
+        onClick={() => setIsOtpModalOpen(true)}
+        className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white py-3 text-xs font-black tracking-wide shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
       >
         <KeyRound className="h-4 w-4" />
         <span>VERIFY DOORSTEP HANDOVER (ENTER OTP)</span>
@@ -270,92 +241,6 @@ export const DeliveryPartnerCard: React.FC<{ className?: string }> = ({ classNam
             >
               <Send className="h-3.5 w-3.5" />
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* Doorstep Handover OTP Verification Modal */}
-      {isOtpModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
-          <div className="relative w-full max-w-sm rounded-3xl border border-emerald-200 bg-white p-6 shadow-2xl space-y-5">
-            
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200">
-                  <KeyRound className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900">Verify Delivery Handover</h3>
-                  <p className="text-[11px] text-slate-500">Secure contactless verification</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsOtpModalOpen(false)}
-                className="rounded-lg p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* OTP Instructions & Demo Code Banner */}
-            <div className="rounded-2xl bg-emerald-50/70 border border-emerald-200/80 p-3.5 space-y-1 text-left">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-emerald-950">Your Security OTP</span>
-                <span className="font-mono text-xs font-black text-emerald-800 bg-white px-2 py-0.5 rounded-lg border border-emerald-200">
-                  {deliveryOtp}
-                </span>
-              </div>
-              <p className="text-[10px] text-emerald-800">
-                Share or enter this 4-digit code to confirm physical delivery handover with partner Rahul Kumar.
-              </p>
-            </div>
-
-            {/* Input Form */}
-            <form onSubmit={handleVerifyOtpSubmit} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-700 block text-left">
-                  Enter 4-Digit Code
-                </label>
-                <input
-                  type="text"
-                  maxLength={4}
-                  autoFocus
-                  value={enteredOtp}
-                  onChange={(e) => setEnteredOtp(e.target.value.replace(/\D/g, ''))}
-                  placeholder="• • • •"
-                  className="w-full text-center text-2xl font-mono tracking-widest font-black py-3 rounded-2xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 focus:outline-none transition-all"
-                />
-              </div>
-
-              {otpError && (
-                <div className="flex items-center gap-1.5 text-rose-600 bg-rose-50 border border-rose-200 p-2.5 rounded-xl text-xs font-medium text-left animate-in shake">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{otpError}</span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-                <span>Didn't receive code?</span>
-                <button
-                  type="button"
-                  disabled={resendCooldown > 0}
-                  onClick={() => setResendCooldown(24)}
-                  className="font-bold text-cyan-600 hover:text-cyan-800 disabled:text-slate-400 transition-colors"
-                >
-                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
-                </button>
-              </div>
-
-              <button
-                type="submit"
-                disabled={enteredOtp.length !== 4}
-                className="w-full rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white py-3 text-xs font-black tracking-wide shadow-md shadow-emerald-600/25 transition-all"
-              >
-                CONFIRM & COMPLETE DELIVERY
-              </button>
-            </form>
-
           </div>
         </div>
       )}

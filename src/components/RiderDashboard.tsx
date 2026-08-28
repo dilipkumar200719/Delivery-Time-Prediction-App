@@ -77,10 +77,10 @@ export const RiderDashboard: React.FC = () => {
     setCheckedItems(prev => ({ ...prev, [itemName]: !prev[itemName] }));
   };
 
-  const handleOtpSubmit = (e: React.FormEvent) => {
+  const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!enteredOtp) return;
-    const isValid = riderVerifyOtp(enteredOtp);
+    const isValid = await riderVerifyOtp(enteredOtp);
     if (isValid) {
       setOtpSuccess(true);
       setOtpError(false);

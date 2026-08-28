@@ -88,16 +88,30 @@ export interface PredictionResult {
   id: string;
   orderId: string;
   predictedEtaMinutes: number;
+  minEtaMinutes?: number;
+  maxEtaMinutes?: number;
   delayProbability: number; // 0.0 - 1.0
   deliveryStatus: DeliveryStatus;
   riskScore: number; // 0 - 100
   confidence: number; // 0.0 - 1.0
+  onTimeProbability?: number; // 0.0 - 1.0 (e.g. 0.91)
+  deliveryHealthStatus?: 'ON_TRACK' | 'SLIGHTLY_DELAYED' | 'SIGNIFICANTLY_DELAYED';
+  deliveryHealthReason?: string;
   factorContributions: FactorContribution[];
   recommendedRoute: RouteOption;
   availableRoutes: RouteOption[];
   deliveryHealthScore: number;
+  baseDeliveryMinutes?: number;
+  prepMinutesImpact?: number;
+  trafficMinutesImpact?: number;
+  distanceMinutesImpact?: number;
+  weatherMinutesImpact?: number;
+  vehicleMinutesImpact?: number;
+  smartRouteMinutesImpact?: number;
   explanation: string;
   explanationText?: string;
+  customerWhyLateExplanation?: string;
+  technicalExplanation?: string;
   createdAt: string;
 }
 

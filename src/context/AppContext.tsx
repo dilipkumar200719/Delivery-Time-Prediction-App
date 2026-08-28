@@ -82,7 +82,7 @@ interface AppContextType {
   isOtpModalOpen: boolean;
   setIsOtpModalOpen: (open: boolean) => void;
   requestDeliveryOtp: () => void;
-  verifyDeliveryOtp: (enteredOtp: string) => { success: boolean; message: string };
+  verifyDeliveryOtp: (enteredOtp: string) => Promise<{ success: boolean; message: string }>;
 
   // Role Management (Customer vs Delivery Boy / Rider)
   userRole: 'CUSTOMER' | 'RIDER';
@@ -107,7 +107,7 @@ interface AppContextType {
   updateConditions: (patch: Partial<DeliveryConditions>, triggerReason?: string) => Promise<void>;
   updateOrderStatus: (status: OrderStatus, progress?: number) => void;
   riderAdvanceWorkflowStage: (nextStatus: OrderStatus) => Promise<void>;
-  riderVerifyOtp: (enteredOtp: string) => boolean;
+  riderVerifyOtp: (enteredOtp: string) => Promise<boolean>;
   selectRoute: (routeId: string) => void;
   openGame: (gameName: 'Delivery Rush' | 'Catch the Food' | 'Guess Your ETA') => void;
   closeGame: () => void;
@@ -898,15 +898,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [ttsEnabled, speakAIInsight]);
 
-  const verifyDeliveryOtp = useCallback((enteredOtp: string): { success: boolean; message: string } => {
+  const verifyDeliveryOtp = useCallback(async (enteredOtp: string): Promise<{ success: boolean; message: string }> => {
     if (!enteredOtp || !enteredOtp.trim()) {
-      return { success: false, message: 'Please enter the delivery OTP.' };
+      return { success: false, message: 'Please enter your 4-digit delivery OTP.' };
     }
-    const cleanOtp = enteredOtp.trim();
+    const cleanOtp = enteredOtp.trim().replace(/\D/g, '');
     if (cleanOtp.length < 4) {
-      return { success: false, message: 'Please enter the complete 4-digit delivery OTP.' };
+      return { success: false, message: 'Please enter all 4 digits.' };
     }
 
+    const orderId = activeOrder?.id || 'ORD-8553';
     const expectedOtp = activeOrder?.deliveryOtp || '8553';
     const altOtp = activeOrder?.id ? activeOrder.id.replace(/\D/g, '').slice(-4) : '8553';
 
@@ -920,7 +921,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         speedKmh: 0,
         updatedAt: new Date().toISOString()
       } : {
-        orderId: activeOrder?.id || 'ORD-8553',
+        orderId,
         driverPosition: { x: 88, y: 20, progress: 100 },
         speedKmh: 0,
         distanceRemainingKm: 0,
@@ -939,8 +940,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
 
       setTracking(finalTracking);
+      setIsRiderArrived(false);
+      setOtpRequested(false);
       updateOrderStatus('DELIVERED', 100);
-      handleDeliveryComplete(finalTracking);
+      await handleDeliveryComplete(finalTracking);
+      await FirebaseDbService.verifyOrderOtp(orderId, cleanOtp);
 
       if (ttsEnabled) {
         speakAIInsight('Delivery OTP verified successfully! Order completed.');
@@ -948,13 +952,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       return {
         success: true,
-        message: '✓ OTP Verified! Delivery successfully confirmed!'
+        message: 'Delivery confirmed successfully!'
       };
     }
 
     return {
       success: false,
-      message: 'The OTP you entered is incorrect. Please check the OTP and try again.'
+      message: 'Incorrect OTP. Please check the 4-digit code and try again.'
     };
   }, [activeOrder, tracking, conditions, updateOrderStatus, handleDeliveryComplete, ttsEnabled, speakAIInsight]);
 
@@ -973,8 +977,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [updateOrderStatus, requestDeliveryOtp, activeOrder?.deliveryOtp, verifyDeliveryOtp, ttsEnabled, speakAIInsight]);
 
-  const riderVerifyOtp = useCallback((enteredOtp: string): boolean => {
-    const result = verifyDeliveryOtp(enteredOtp);
+  const riderVerifyOtp = useCallback(async (enteredOtp: string): Promise<boolean> => {
+    const result = await verifyDeliveryOtp(enteredOtp);
     return result.success;
   }, [verifyDeliveryOtp]);
 
