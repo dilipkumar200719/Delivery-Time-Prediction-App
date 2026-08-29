@@ -6,7 +6,7 @@ export type VehicleHealth = 'EXCELLENT' | 'GOOD' | 'WARNING' | 'CRITICAL';
 export type DriverStatus = 'AVAILABLE' | 'NORMAL' | 'TIRED' | 'FATIGUED';
 export type StoreStatus = 'READY' | 'NORMAL' | 'DELAYED';
 export type DeliveryStatus = 'ON_TIME' | 'POSSIBLE_DELAY' | 'HIGH_DELAY';
-export type OrderStatus = 'CONFIRMED' | 'PREPARING' | 'DRIVER_ASSIGNED' | 'OUT_FOR_DELIVERY' | 'ARRIVING_SOON' | 'DELIVERED';
+export type OrderStatus = 'CONFIRMED' | 'PREPARING' | 'DRIVER_ASSIGNED' | 'OUT_FOR_DELIVERY' | 'ARRIVING_SOON' | 'DELIVERED' | 'CANCELLED';
 
 export type AppTab = 
   | 'HOME' 
@@ -181,7 +181,21 @@ export interface OrderRecord {
   userId: string;
   customerName: string;
   restaurantName: string;
-  items: Array<{ name: string; quantity: number; price: number }>;
+  restaurantId?: string;
+  restaurantImage?: string;
+  items: Array<{
+    id?: string;
+    name: string;
+    quantity: number;
+    price: number;
+    isVeg?: boolean;
+    image?: string;
+  }>;
+  subtotal?: number;
+  deliveryFee?: number;
+  gstAndFees?: number;
+  discount?: number;
+  couponCode?: string;
   totalAmountRupees: number;
   status: OrderStatus;
   conditions: DeliveryConditions;
@@ -189,11 +203,16 @@ export interface OrderRecord {
   actualEtaMinutes?: number;
   startedAt: string;
   deliveredAt?: string;
+  deliveryOtp?: string;
+  deliveryAddress?: string;
+  paymentMethod?: string;
+  specialInstructions?: string;
   delayMinutes?: number;
   delayCompensationPoints?: number;
   pointsEarnedFromGames?: number;
   pointsEarnedFromDelivery?: number;
-  deliveryOtp?: string;
+  customerRating?: number;
+  customerFeedback?: string;
 }
 
 export interface GameSession {

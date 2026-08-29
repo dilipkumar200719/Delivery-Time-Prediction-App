@@ -22,7 +22,12 @@ export const CartDrawer: React.FC = () => {
     clearCart,
     cartSubtotal,
     cartDeliveryFee,
+    cartGst,
+    cartPlatformFee,
+    cartDiscount,
     cartTotal,
+    appliedCoupon,
+    setAppliedCoupon,
     cartDynamicEta,
     setIsCheckoutOpen,
     setActiveTab
@@ -68,13 +73,23 @@ export const CartDrawer: React.FC = () => {
               </div>
             </div>
 
-            <button
-              id="close-cart-drawer"
-              onClick={() => setIsCartOpen(false)}
-              className="rounded-lg p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              {cart.length > 0 && (
+                <button
+                  onClick={clearCart}
+                  className="text-xs text-slate-400 hover:text-rose-600 font-medium px-2 py-1 rounded-lg hover:bg-rose-50 transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+              <button
+                id="close-cart-drawer"
+                onClick={() => setIsCartOpen(false)}
+                className="rounded-lg p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
           </div>
 
           {/* Cart Items Scrollable Body */}
@@ -188,14 +203,38 @@ export const CartDrawer: React.FC = () => {
                 </p>
               </div>
 
+              {/* Promo Offers Pills */}
+              <div className="space-y-1.5">
+                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Coupons & Offers</div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {[
+                    { code: 'PREDICT50', label: '₹50 OFF (>₹199)' },
+                    { code: 'FIRSTEAT', label: '20% OFF' },
+                    { code: 'FREEDEL', label: 'FREE Delivery' }
+                  ].map(c => (
+                    <button
+                      key={c.code}
+                      onClick={() => setAppliedCoupon(appliedCoupon === c.code ? null : c.code)}
+                      className={`text-[11px] font-bold px-2.5 py-1 rounded-lg border transition-all ${
+                        appliedCoupon === c.code
+                          ? 'bg-orange-600 text-white border-orange-600 shadow-2xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-orange-300'
+                      }`}
+                    >
+                      {c.code} {appliedCoupon === c.code ? '✓' : `(${c.label})`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Price Calculation */}
               <div className="space-y-1.5 text-xs">
                 <div className="flex justify-between text-slate-600">
-                  <span>Subtotal</span>
+                  <span>Item Subtotal</span>
                   <span className="font-semibold text-slate-900">₹{cartSubtotal}</span>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <span>Delivery Fee</span>
+                  <span>Delivery Partner Fee</span>
                   <span className="font-semibold text-slate-900">
                     {cartDeliveryFee === 0 ? (
                       <span className="text-emerald-600 font-bold">FREE</span>
@@ -204,9 +243,23 @@ export const CartDrawer: React.FC = () => {
                     )}
                   </span>
                 </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>GST & Restaurant Packaging</span>
+                  <span className="font-semibold text-slate-900">₹{cartGst}</span>
+                </div>
+                <div className="flex justify-between text-slate-600">
+                  <span>Platform & AI Telemetry Fee</span>
+                  <span className="font-semibold text-slate-900">₹{cartPlatformFee}</span>
+                </div>
+                {cartDiscount > 0 && (
+                  <div className="flex justify-between text-emerald-600 font-bold">
+                    <span>Discount Applied ({appliedCoupon || 'Rewards'})</span>
+                    <span>-₹{cartDiscount}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm font-black text-slate-950 pt-2 border-t border-slate-200">
-                  <span>Total</span>
-                  <span>₹{cartTotal}</span>
+                  <span>Grand Total</span>
+                  <span className="text-base text-cyan-900 font-black">₹{cartTotal}</span>
                 </div>
               </div>
 

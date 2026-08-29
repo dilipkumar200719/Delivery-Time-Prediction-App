@@ -47,11 +47,21 @@ interface AppContextType {
   removeFromCart: (itemId: string) => void;
   updateCartQuantity: (itemId: string, delta: number) => void;
   clearCart: () => void;
+  reorderItems: (order: OrderRecord) => void;
   cartCount: number;
   cartSubtotal: number;
   cartDeliveryFee: number;
+  cartGst: number;
+  cartPlatformFee: number;
+  cartDiscount: number;
   cartTotal: number;
+  appliedCoupon: string | null;
+  setAppliedCoupon: (code: string | null) => void;
+  isRedeemingPoints: boolean;
+  setIsRedeemingPoints: (redeem: boolean) => void;
   cartDynamicEta: { min: number; max: number };
+  selectedRestaurantId: string;
+  setSelectedRestaurantId: (id: string) => void;
   
   // Modals & UI States
   isCartOpen: boolean;
@@ -100,7 +110,17 @@ interface AppContextType {
   // Actions
   predictNow: (customConditions?: Partial<DeliveryConditions>) => Promise<PredictionResult>;
   createOrderAndStartSimulation: (customConditions?: Partial<DeliveryConditions>) => Promise<void>;
-  checkoutAndPlaceOrder: (details: { address: string; paymentMethod: string; specialInstructions?: string }) => Promise<OrderRecord>;
+  checkoutAndPlaceOrder: (details: {
+    address: string;
+    paymentMethod: string;
+    specialInstructions?: string;
+    couponCode?: string;
+    discountAmount?: number;
+    pointsRedeemed?: number;
+  }) => Promise<OrderRecord>;
+  cancelOrder: (orderId: string, reason?: string) => Promise<boolean>;
+  rateOrder: (orderId: string, rating: number, feedback?: string) => Promise<void>;
+  setActiveOrderById: (orderId: string) => void;
   toggleSimulationPlayPause: () => void;
   setSimulationSpeed: (speed: number) => void;
   resetSimulation: () => void;
@@ -222,8 +242,62 @@ const AppContext = createContext<AppContextType | null>(null);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfile | null>(DEFAULT_USER);
   const [conditions, setConditions] = useState<DeliveryConditions>(DEFAULT_CONDITIONS);
-  const [activeOrder, setActiveOrder] = useState<OrderRecord | null>(INITIAL_ACTIVE_ORDER);
-  const [userOrders, setUserOrders] = useState<OrderRecord[]>([INITIAL_ACTIVE_ORDER]);
+
+  // LocalStorage persistence for Cart
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('predicteats_cart');
+      return saved ? JSON.parse(saved) : INITIAL_CART;
+    } catch {
+      return INITIAL_CART;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('predicteats_cart', JSON.stringify(cart));
+    } catch (e) {
+      console.warn('Failed to save cart to localStorage', e);
+    }
+  }, [cart]);
+
+  // LocalStorage persistence for Orders
+  const [userOrders, setUserOrders] = useState<OrderRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('predicteats_orders');
+      return saved ? JSON.parse(saved) : [INITIAL_ACTIVE_ORDER];
+    } catch {
+      return [INITIAL_ACTIVE_ORDER];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('predicteats_orders', JSON.stringify(userOrders));
+    } catch (e) {
+      console.warn('Failed to save orders to localStorage', e);
+    }
+  }, [userOrders]);
+
+  const [activeOrder, setActiveOrder] = useState<OrderRecord | null>(() => {
+    try {
+      const saved = localStorage.getItem('predicteats_active_order');
+      return saved ? JSON.parse(saved) : INITIAL_ACTIVE_ORDER;
+    } catch {
+      return INITIAL_ACTIVE_ORDER;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (activeOrder) {
+        localStorage.setItem('predicteats_active_order', JSON.stringify(activeOrder));
+      }
+    } catch (e) {
+      console.warn('Failed to save activeOrder to localStorage', e);
+    }
+  }, [activeOrder]);
+
   const [prediction, setPrediction] = useState<PredictionResult | null>(INITIAL_PREDICTION);
   const [tracking, setTracking] = useState<LiveTrackingState | null>(INITIAL_TRACKING);
   const [activeTab, setActiveTab] = useState<AppTab>('HOME');
@@ -243,11 +317,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [activeOrder, user?.displayName]);
 
-  // Cart & Modals
-  const [cart, setCart] = useState<CartItem[]>(INITIAL_CART);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [orderConfirmedModal, setOrderConfirmedModal] = useState<OrderRecord | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [isRedeemingPoints, setIsRedeemingPoints] = useState(false);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string>('rest_spice_route');
 
   // Games & Other Modals
   const [activeGame, setActiveGame] = useState<'Delivery Rush' | 'Catch the Food' | 'Guess Your ETA' | null>(null);
@@ -375,12 +450,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const cartDeliveryFee = useMemo(() => {
     if (cart.length === 0) return 0;
+    if (appliedCoupon === 'FREEDEL') return 0;
     return cartSubtotal >= 500 ? 0 : 39;
+  }, [cart, cartSubtotal, appliedCoupon]);
+
+  const cartGst = useMemo(() => {
+    if (cart.length === 0) return 0;
+    return Math.round(cartSubtotal * 0.05); // 5% GST
   }, [cart, cartSubtotal]);
 
+  const cartPlatformFee = useMemo(() => {
+    return cart.length > 0 ? 5 : 0;
+  }, [cart]);
+
+  const cartDiscount = useMemo(() => {
+    let discount = 0;
+    if (appliedCoupon === 'PREDICT50' && cartSubtotal >= 199) {
+      discount += 50;
+    } else if (appliedCoupon === 'FIRSTEAT') {
+      discount += Math.min(100, Math.round(cartSubtotal * 0.20));
+    } else if (appliedCoupon === 'HUNGRY100' && cartSubtotal >= 499) {
+      discount += 100;
+    }
+
+    if (isRedeemingPoints) {
+      const userPts = user?.rewardBalanceRupees || 25;
+      discount += Math.min(50, Math.floor(userPts));
+    }
+
+    return discount;
+  }, [appliedCoupon, cartSubtotal, isRedeemingPoints, user?.rewardBalanceRupees]);
+
   const cartTotal = useMemo(() => {
-    return cartSubtotal + cartDeliveryFee;
-  }, [cartSubtotal, cartDeliveryFee]);
+    if (cart.length === 0) return 0;
+    const rawTotal = cartSubtotal + cartDeliveryFee + cartGst + cartPlatformFee - cartDiscount;
+    return Math.max(0, rawTotal);
+  }, [cart, cartSubtotal, cartDeliveryFee, cartGst, cartPlatformFee, cartDiscount]);
 
   const cartDynamicEta = useMemo(() => {
     if (cart.length === 0) return { min: 18, max: 22 };
@@ -434,6 +539,94 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCart([]);
   }, []);
 
+  const reorderItems = useCallback((order: OrderRecord) => {
+    const itemsToLoad: CartItem[] = order.items.map((it, idx) => ({
+      id: it.id || `reorder_${order.id}_${idx}`,
+      name: it.name,
+      price: it.price,
+      restaurantName: order.restaurantName,
+      restaurantId: order.restaurantId || 'rest_spice_route',
+      quantity: it.quantity || 1,
+      image: it.image || 'https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=600&auto=format&fit=crop&q=80',
+      isVeg: it.isVeg ?? true,
+      prepTime: 12
+    }));
+    setCart(itemsToLoad);
+    setIsCartOpen(true);
+  }, []);
+
+  const cancelOrder = useCallback(async (orderId: string, reason: string = 'Cancelled by Customer'): Promise<boolean> => {
+    setUserOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'CANCELLED' as OrderStatus } : o));
+    if (activeOrder?.id === orderId) {
+      setActiveOrder(prev => prev ? { ...prev, status: 'CANCELLED' as OrderStatus } : null);
+      setTracking(prev => prev ? { ...prev, status: 'CANCELLED' as OrderStatus, isPaused: true } : null);
+    }
+    const targetOrder = userOrders.find(o => o.id === orderId) || activeOrder;
+    if (targetOrder) {
+      await FirebaseDbService.saveOrder({
+        ...targetOrder,
+        id: orderId,
+        status: 'CANCELLED'
+      });
+    }
+    return true;
+  }, [activeOrder, userOrders]);
+
+  const rateOrder = useCallback(async (orderId: string, rating: number, feedback?: string): Promise<void> => {
+    setUserOrders(prev => prev.map(o => o.id === orderId ? { ...o, customerRating: rating, customerFeedback: feedback } : o));
+    if (activeOrder?.id === orderId) {
+      setActiveOrder(prev => prev ? { ...prev, customerRating: rating, customerFeedback: feedback } : null);
+    }
+    if (user) {
+      await FirebaseDbService.recordRewardTransaction({
+        userId: user.uid,
+        orderId,
+        points: 50,
+        rupeeValue: 5,
+        type: 'BONUS',
+        title: 'Rating Reward ⭐',
+        description: `Earned 50 points for rating order ${orderId} (${rating} stars)`
+      });
+      const updatedUser = await FirebaseDbService.getUserProfile(user.uid);
+      if (updatedUser) setUser(updatedUser);
+      const txs = await FirebaseDbService.getRewardTransactions(user.uid);
+      setRewards(txs);
+    }
+    confetti({ particleCount: 80, spread: 60 });
+  }, [activeOrder, user]);
+
+  const setActiveOrderById = useCallback((orderId: string) => {
+    const found = userOrders.find(o => o.id === orderId);
+    if (found) {
+      setActiveOrder(found);
+      const pred = found.prediction || predictDelivery(found.conditions || conditions, found.id);
+      setPrediction(pred);
+      const isDelivered = found.status === 'DELIVERED';
+      const prog = isDelivered ? 100 : (found.status === 'ARRIVING_SOON' ? 90 : (found.status === 'OUT_FOR_DELIVERY' ? 60 : 25));
+      const newTracking: LiveTrackingState = {
+        orderId: found.id,
+        driverPosition: { x: 35, y: 65, progress: prog },
+        speedKmh: isDelivered ? 0 : 28,
+        distanceRemainingKm: isDelivered ? 0 : 2.4,
+        etaMinutes: isDelivered ? 0 : (pred.predictedEtaMinutes || 18),
+        currentRouteId: pred.recommendedRoute.id,
+        status: found.status,
+        deliveryHealth: pred.deliveryHealthScore || 87,
+        riskScore: pred.riskScore,
+        vehicleHealth: found.conditions?.vehicleHealth || 'GOOD',
+        batteryLevel: found.conditions?.batteryLevel || 85,
+        conditions: found.conditions || conditions,
+        activeIncidents: [],
+        isPaused: isDelivered,
+        simulationSpeed: 1,
+        updatedAt: new Date().toISOString()
+      };
+      setTracking(newTracking);
+      setIsDeliveryCompleted(isDelivered);
+      setActiveTab('TWIN');
+    }
+  }, [userOrders, conditions, setActiveTab]);
+
   // Text-To-Speech Narration
   const speakAIInsight = useCallback((text: string) => {
     if (!('speechSynthesis' in window)) return;
@@ -467,7 +660,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [conditions, activeOrder, ttsEnabled, speakAIInsight]);
 
   // 2. Checkout & Real Order Placement (Persisted to Firestore)
-  const checkoutAndPlaceOrder = useCallback(async (details: { address: string; paymentMethod: string; specialInstructions?: string }): Promise<OrderRecord> => {
+  const checkoutAndPlaceOrder = useCallback(async (details: {
+    address: string;
+    paymentMethod: string;
+    specialInstructions?: string;
+    couponCode?: string;
+    discountAmount?: number;
+    pointsRedeemed?: number;
+  }): Promise<OrderRecord> => {
     const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
     const currentCart = cart.length > 0 ? [...cart] : INITIAL_CART;
     const maxPrep = Math.max(...currentCart.map(c => c.prepTime || 10), 10);
@@ -480,18 +680,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const pred = predictDelivery(targetConds, orderId);
     const generatedOtp = `${Math.floor(1000 + Math.random() * 9000)}`;
 
+    const effectiveDiscount = details.discountAmount !== undefined ? details.discountAmount : cartDiscount;
+    const grandTotal = Math.max(0, cartSubtotal + cartDeliveryFee + cartGst + cartPlatformFee - effectiveDiscount);
+
     const newOrder: OrderRecord = {
       id: orderId,
       userId: user?.uid || 'demo_user_1024',
       customerName: user?.displayName || 'Dilip (AI Pilot)',
       restaurantName: currentCart[0]?.restaurantName || 'Spice Route Kitchen',
-      items: currentCart.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
-      totalAmountRupees: cartTotal > 0 ? cartTotal : 836,
+      restaurantId: currentCart[0]?.restaurantId || 'rest_spice_route',
+      items: currentCart.map(i => ({
+        id: i.id,
+        name: i.name,
+        quantity: i.quantity,
+        price: i.price,
+        isVeg: i.isVeg,
+        image: i.image
+      })),
+      subtotal: cartSubtotal,
+      deliveryFee: cartDeliveryFee,
+      gstAndFees: cartGst + cartPlatformFee,
+      discount: effectiveDiscount,
+      couponCode: details.couponCode || appliedCoupon || undefined,
+      totalAmountRupees: grandTotal > 0 ? grandTotal : (cartTotal > 0 ? cartTotal : 836),
       status: 'CONFIRMED',
       conditions: targetConds,
       prediction: pred,
       startedAt: new Date().toISOString(),
-      deliveryOtp: generatedOtp
+      deliveryOtp: generatedOtp,
+      deliveryAddress: details.address || '42, Indiranagar 100ft Road, Bangalore',
+      paymentMethod: details.paymentMethod || 'UPI',
+      specialInstructions: details.specialInstructions
     };
 
     const newTracking: LiveTrackingState = {
@@ -532,16 +751,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Clear cart and show order confirmed modal
     setCart([]);
     setIsCheckoutOpen(false);
+    setAppliedCoupon(null);
+    setIsRedeemingPoints(false);
     setOrderConfirmedModal(newOrder);
 
-    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
 
     if (ttsEnabled) {
       speakAIInsight(`Order ${orderId} placed successfully. AI prediction calculates arrival in ${pred.predictedEtaMinutes} minutes.`);
     }
 
     return newOrder;
-  }, [cart, cartTotal, conditions, user, ttsEnabled, speakAIInsight]);
+  }, [cart, cartSubtotal, cartDeliveryFee, cartGst, cartPlatformFee, cartDiscount, cartTotal, appliedCoupon, conditions, user, ttsEnabled, speakAIInsight]);
 
   // 3. Create Demo Order & Start Simulation
   const createOrderAndStartSimulation = useCallback(async (customConditions?: Partial<DeliveryConditions>) => {
@@ -1155,11 +1376,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         removeFromCart,
         updateCartQuantity,
         clearCart,
+        reorderItems,
         cartCount,
         cartSubtotal,
         cartDeliveryFee,
+        cartGst,
+        cartPlatformFee,
+        cartDiscount,
         cartTotal,
+        appliedCoupon,
+        setAppliedCoupon,
+        isRedeemingPoints,
+        setIsRedeemingPoints,
         cartDynamicEta,
+        selectedRestaurantId,
+        setSelectedRestaurantId,
         isCartOpen,
         setIsCartOpen,
         isCheckoutOpen,
@@ -1199,6 +1430,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         predictNow,
         createOrderAndStartSimulation,
         checkoutAndPlaceOrder,
+        cancelOrder,
+        rateOrder,
+        setActiveOrderById,
         toggleSimulationPlayPause,
         setSimulationSpeed,
         resetSimulation,
